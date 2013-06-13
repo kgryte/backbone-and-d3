@@ -24,7 +24,7 @@ function controller( element ) {
 	};
 
 	// Initialize our model; once finished render our view.
-	model( "data/example.json", options, view );
+	model( "data/example2.json", options, view );
 
 
 }; // end FUNCTION controller()
@@ -34,24 +34,73 @@ function controller( element ) {
 
 function model( filePath, options, clbk ) {
 
+	// Initialize a dynamic model with data and chart sub-models:
+	var _model = new Backbone.Model();
+
+	// Instantiate the Chart Model:
+	var _chart = new ChartModel();
+
+	_model.set('chart', _chart);
+		
+
 	// Load our data set:
 	d3.json( filePath, function(json) {
 
-		// Initialize a dynamic model with data and chart sub-models:
-		var _model = new Backbone.Model();
+		// Convert the JSON to an array:
+		var dataArray = json2array( json );
 
-		_model.set( 
-			{
-				data: new DataSeries( json ),
-				chart: new ChartModel()
-			}
-		);
+		// Instantiate the Data Model:
+		var _data = new DataCollection( dataArray );
 
+		_model.set('data', _data);
+
+
+		// Run our callback, passing along our dynamic model and options:
 		clbk( _model, options );
 
 	});
 
 };
+
+
+function json2array( json ) {
+	//
+	// Converter to adhere to DataCollection API.
+	//
+	//	* This helper will probably be unique to raw data and application.
+	//
+
+	// Here, the data is of the form:
+	//	{
+	//		'x': #,
+	//		'y': []	
+	//	}
+	//
+
+	// Expand the data into M Nx2 matrices (i.e., one matrix for each data series)
+
+	data = [];
+
+	// Determine the number of data series:
+	// NOTE: We assume that each value for 'y' is the same length
+	var M = json[0].y.length; 
+	
+	// Initialize the array:
+	for (var m = 0; m < M; m++) {
+		data[m] = {
+			'dataSeries': []
+		};
+	}; // end FOR m
+
+	_.each( json, function(d,i)  {
+		for (var m = 0; m < M; m++) {
+			data[m]['dataSeries'][i] = [ d.x, d.y[m] ];
+		}; // end FOR m
+	});
+
+	return data;
+
+}; // end FUNCTION json2array( json )
 
 
 

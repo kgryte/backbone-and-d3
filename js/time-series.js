@@ -34,18 +34,30 @@
 var DataPoint = Backbone.Model.extend({
 
 	// Set the default coordinates for an individual data point:
-	defaults: {
-		x: 0,
-		y: 0
+	defaults: function() {
+		return {
+			'datum': [0,0] // default is 2-dimensions
+		};
 	},
 
-	// The basic type in the time series is a point:
-	type: "point",
+	// The basic type in a time series is a point:
+	type: "point"
 
-	// Data validation:
-	validate: function(attrs, options) {
-		// Code goes here. Check for numerical input, appropriate keys, etc. Ensure standard data representation.
-	}
+});
+
+
+// Individual data series:
+var DataSeries = DataPoint.extend( {
+
+	// Set the default format for an individual data series:
+	defaults: function() {
+		return {
+			'dataSeries': [] // default is an array of DataPoints
+		};
+	},
+
+	// A collection of data points is of type data series:
+	type: "dataSeries"
 
 });
 
@@ -67,11 +79,6 @@ var ChartModel = Backbone.Model.extend({
 		},
 		xLabel: 'x',
 		yLabel: 'y'
-	},
-
-	// Parameter validation:
-	validate: function(attrs, options) {
-		// Code goes here.
 	}
 
 });
@@ -84,7 +91,7 @@ var ChartModel = Backbone.Model.extend({
 
 
 // A line is a collection of data points:
-var DataSeries = Backbone.Collection.extend({
+var DataCollection = Backbone.Collection.extend({
 
 	// A data point will serve as the basic unit for our collection:
 	model: DataPoint
@@ -108,7 +115,8 @@ var ChartBase = Backbone.View.extend({
 
 	render: function() {
 
-		// This method should be overloaded by higher layers:
+		this.createCanvas();
+
 		return this;
 
 	},
@@ -151,38 +159,18 @@ var ChartBase = Backbone.View.extend({
 
 
 
-// Create the line chart layer:
-var LineChart = ChartBase.extend({
+// Create the Axes layer:
+var ChartArea = ChartBase.extend({
 
-	initialize: function( options ) {		
-		//
-
-		// Extract the data from the collection:
-		this.setData();
-
-	},
-
-	setData: function() {
-
-		// Access the raw JavaScript array of models in our collection:
-		this.data = jQuery.parseJSON(JSON.stringify(this.collection.models));
-
-		return this;
-
-	},
-
-	updateData: function() {
-
-		// When the model updates...
+	initialize: function( options ) {
 
 	},
 
 	render: function() {
 
-		// [1] Create the canvas, [2] Generate the axes, [3] Display the data
+		// [1] Create the canvas, [2] Generate the axes
 		this.createCanvas()
-			.axes()
-			.show();
+			.axes();
 
 		return this;
 
@@ -251,7 +239,18 @@ var LineChart = ChartBase.extend({
 		var width = this.model.get('graph').width;
 
 		// Update the scale domain and range:
-		xScale.domain(d3.extent(this.data, function(d) { return d.x; } ))
+		xScale.domain( [
+			d3.min( this.data, function(d) { 
+				return d3.min( d, function(dataPt) { 
+					return dataPt[0]; 
+				}); 
+			} ),
+			d3.max( this.data, function(d) { 
+				return d3.max( d, function(dataPt) { 
+					return dataPt[0]; 
+				});
+			}) ] 
+			)
 			.range( [0, width] );
 
 		// Update our chart model:
@@ -260,6 +259,7 @@ var LineChart = ChartBase.extend({
 		return this;
 
 	},
+
 	yScale: function( __ ) {
 
 		var yScale;
@@ -273,8 +273,19 @@ var LineChart = ChartBase.extend({
 		var height = this.model.get('graph').height;
 
 		// Update the scale domain and range:
-		yScale.domain([0, d3.max(this.data, function(d) { return d.y; } )])
-			.range( [height, 0] );
+		yScale.domain( [
+			/*d3.min( this.data, function(d) { 
+				return d3.min( d, function(dataPt) { 
+					return dataPt[1]; 
+				}); 
+			}),*/
+			0,
+    		d3.max( this.data, function(d) { 
+    			return d3.max( d, function(dataPt) { 
+    				return dataPt[1]; 
+    			}); 
+    		}) ]
+    		).range( [height, 0] );
 
 		// Update our chart model:
 		this.model.set('yScale', yScale);	
@@ -301,6 +312,7 @@ var LineChart = ChartBase.extend({
 		return this;
 
 	},
+
 	yAxis: function( __ ) {
 		
 		var yAxis = d3.svg.axis()
@@ -318,11 +330,59 @@ var LineChart = ChartBase.extend({
 
 		return this;
 
+	}
+
+});
+
+
+
+
+
+
+// Create the line chart layer:
+var LineChart = ChartArea.extend({
+
+	initialize: function( options ) {		
+		//
+
+		// Extract the data from the collection:
+		this.getData();
+
+	},
+
+	getData: function() {
+
+		// Map the collection to a format suitable for the D3 API:
+		this.data = this.collection.map( function(d) { 
+			return d.get('dataSeries'); 
+		} );
+
+		return this;
+
+	},
+
+	updateData: function() {
+
+		// When the model updates...
+
+	},
+
+	render: function() {
+
+		// [1] Create the canvas, [2] Generate the axes, [3] Display the data
+		this.createCanvas()
+			.axes()
+			.show();
+
+		return this;
+
 	},
 
 
-
 	show: function() {
+
+		// Extend the layer object:
+		this.layer.data = {};
 
 		// Create the path generator:
 		this.line();
@@ -330,11 +390,21 @@ var LineChart = ChartBase.extend({
 		// Get the path generator:
 		var line = this.model.get('line');
 
-		// Create the line path:
-		this.layer.data = this.layer.base.append("svg:path")
-			.data( this.data )
-			.attr("class", "line")
-			.attr("d", line(this.data) );
+		// Bind the data:
+		this.layer.data.base = this.layer.base.selectAll(".data-series")
+			.data( this.data ) // data is an array of arrays
+			.enter()
+			.append("svg:g")
+				.attr("class", "data-series");
+
+		// Create the line paths:
+		this.layer.data.paths = this.layer.data.base.append("svg:path")
+			.attr("class", function(d,i) { 
+				return "line " + "line" + i; 
+			})
+			.attr("d", function(d,i) { 
+				return line( d ); 
+			} );
 
 		return this;
 		
@@ -352,8 +422,8 @@ var LineChart = ChartBase.extend({
 				yScale = this.model.get('yScale');
 		
 			line
-				.x( function(d) { return xScale( d.x ); } )
-				.y( function(d) { return yScale( d.y ); } );
+				.x( function(d) { return xScale( d[0] ); } )
+				.y( function(d) { return yScale( d[1] ); } );
 
 		}else {
 			// Allow external setting of the line path:
