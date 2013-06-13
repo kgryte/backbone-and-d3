@@ -15,7 +15,13 @@
 %		[1] Decouple view 'data' from view itself. Create a chart model (?)
 *		[2] Validate model data
 %		[3] Parse input options for view
-*
+%		[4] Stipulate updates
+%		[5] Figure out how to handle the data. Currently, data is duplicated.
+*		[6] Model simulation facilities
+*		[7] Demonstrate that changes in model values actually enact changes in view.
+*		[8] Support one to many time series --> m-element vector for 'y'
+*		[9] Time series colors (default ordering) --> no, just set a class for each time series and use CSS.
+*		[10] Ensure standard data representation
 */
 
 
