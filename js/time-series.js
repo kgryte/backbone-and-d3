@@ -386,65 +386,63 @@ var LineChart = ChartArea.extend({
 
 	render: function() {
 
-		// [1] Create the canvas, [2] Display the data, [3] Generate the axes
+		// [1] Create the canvas, [2] Generate the axes, [3] Bind the data, [4] Plot the data
 		this.createCanvas()
 			.axes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
-			.show();
+			.bindData()
+			.plot();
 			
 		return this;
 
 	},
 
 
-	show: function() {
-
-		// Extend the layer object:
-		this.layer.data = {};
+	plot: function() {
 
 		// Get the color choices:
 		var colorTable = this.model.get('colors'),
 			colorKeys = Object.keys(colorTable), // this should work in most modern browsers
 			numColors = colorKeys.length;
-			
-		// Get the x scale:
-		var xScale = this.model.get('xScale');
 
 		// Create the path generator:
 		this.line();
 
 		// Get the path generator:
 		var line = this.model.get('line');
-
-		// Bind the data:
-		this.layer.data.base = this.layer.chart.selectAll(".data-series")
-			.data( this.data ) // data is an array of arrays
-		  .enter()
-			.append("svg:g")
-				.attr("class", "data-series");
-
-		// Create the onEnter transition:
-		this.onEnter();
-
-		// Get the onEnter transition:
-		var onEnter = this.model.get('onEnter');
-
-		// Create the line paths:
-		this.layer.data.paths = this.layer.data.base.append("svg:path")
-			.attr("class", function(d,i) { 
-				return "line " + "line" + i; 
-			})
-			.attr("transform", "translate(" + xScale(-100) + ")")
-			.attr("d", function(d,i) { 
+		
+		// Generate the lines:
+		this.layer.data.paths.attr("d", function(d,i) { 
 				return line( d ); 
 			} )
 			.style("stroke", function(d,i) {
 				// Loop back through the colors if we run out!
 				return colorTable[ colorKeys[ i % numColors ] ];
-			})
-			.call( onEnter );
+			});
 
 		return this;
 		
+	},
+
+	bindData: function() {
+
+		// Extend the layer object:
+		this.layer.data = {};
+
+		// Bind the data:
+		this.layer.data.base = this.layer.chart.selectAll(".data-series")
+			.data( this.data ) // data is an array of arrays
+		  .enter() // Create the enter selection
+			.append("svg:g")
+				.attr("class", "data-series");
+
+		// Initialize the line paths:
+		this.layer.data.paths = this.layer.data.base.append("svg:path")
+			.attr("class", function(d,i) { 
+				return "line " + "line" + i; 
+			});
+
+		return this;
+
 	},
 
 
@@ -473,6 +471,63 @@ var LineChart = ChartArea.extend({
 
 		return this;
 			
+	},
+
+
+	update: function() {
+		// TBD
+	}
+
+
+});
+
+
+
+
+
+// Animation layer:
+var AnimatedLineChart = LineChart.extend({
+
+	render: function() {
+
+		this.createCanvas()					// Create the canvas layer
+			.axes()							// Create the axes layer
+			.bindData()						// Bind the bind and initialize the paths layer
+			.initAnimation( )				// Setup the selection for transitions
+			.plot()							// Plot the data
+			.bindAnimation( );				// Bind the animations
+
+	},
+
+	initAnimation: function( ) {
+
+		var selection = this.layer.data.paths;
+
+		// Get the x scale:
+		var xScale = this.model.get('xScale');
+
+		// Set the transitions:
+		selection.attr("transform", "translate(" + xScale(-100) + ")");
+
+		return this;
+
+	},
+
+	bindAnimation: function( ) {
+
+		var selection = this.layer.data.paths;
+
+		// Create the onEnter transition:
+		this.onEnter();
+
+		// Get the onEnter transition:
+		var onEnter = this.model.get('onEnter');
+
+		// Animate:
+		selection.call( onEnter );
+
+		return this;
+
 	},
 
 	onEnter: function( __ ) {
@@ -512,14 +567,15 @@ var LineChart = ChartArea.extend({
 
 	onExit: function() {
 		// TBD
-	},
-
-
-
-	update: function() {
-
-
 	}
 
 
+
+
 });
+
+
+
+
+
+

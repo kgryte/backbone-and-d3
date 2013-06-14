@@ -112,7 +112,7 @@ function view( model, options ) {
 	var element = options.el;
 
 	// Instantiate our view and render:
-	var chart = new LineChart( {
+	var chart = new AnimatedLineChart( {
 		el: element,
 		collection: model.get('data'),
 		model: model.get('chart')
