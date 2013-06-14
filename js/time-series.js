@@ -344,7 +344,7 @@ var ChartArea = ChartBase.extend({
 
 		var yScale;
 		if (!arguments.length) {
-			yScale = d3.scale.linear(); // Default
+			yScale = d3.scale.linear().nice(); // Default
 		}else {
 			// Allow external setting of the scale:
 			yScale = __; 
@@ -466,7 +466,7 @@ var ChartArea = ChartBase.extend({
 
 
 // Create the line chart layer:
-var LineChart = ChartArea.extend({
+var DataLayer = ChartArea.extend({
 
 	initialize: function( options ) {		
 		
@@ -590,7 +590,7 @@ var LineChart = ChartArea.extend({
 
 
 // Listener Layer:
-var ListenerLayer = LineChart.extend({
+var ListenerLayer = DataLayer.extend({
 
 	bindListeners: function() {
 
@@ -607,7 +607,7 @@ var ListenerLayer = LineChart.extend({
 
 
 // Interaction layer:
-var InteractiveLineChart = ListenerLayer.extend({
+var InteractionLayer = ListenerLayer.extend({
 
 	initialize: function( options ) {
 		// This overrides an inherited initialize functions.
@@ -688,7 +688,7 @@ var InteractiveLineChart = ListenerLayer.extend({
 
 
 // Animation layer:
-var AnimatedLineChart = InteractiveLineChart.extend({
+var AnimationLayer = InteractionLayer.extend({
 
 	initialize: function( options ) {
 		// This overrides an inherited initialize functions.

@@ -34,11 +34,18 @@ Views correspond to chart layers. Each additional layer within a hierarchy exten
 
 Multiple layers comprise a chart. 
 
-* ChartBase: the layer which creates the base canvas and defines chart dimensions
-* ChartArea: the layer which creates axes (lines, ticks, labels) and specifies the x and y scales
-* LineChart: the layer which actually plots the data
-* InteractiveLineChart: the layer which enables user interaction, e.g., providing additional context upon hover
-* AnimatedLineChart: the layer which introduces transition animations for various lifecycle events
+* Chart Base: the layer which creates the base canvas and defines chart dimensions
+	* this layer exists as 'ChartBase'
+* Chart Area: the layer which creates axes (lines, ticks, labels) and specifies the x and y scales 
+	* this layer exists as 'ChartArea'
+* Line Chart: the layer which actually plots the data
+	* this layer exists as 'DataLayer'
+* Listeners: a meta-layer which coordinates model updates and corresponding view changes
+	* this layer exists as 'ListenerLayer'
+* Interaction: the layer which enables user interaction, e.g., providing additional context upon hover
+	* this layer exists as 'InteractionLayer'
+* Animation: the layer which introduces transition animations for various lifecycle events
+	* this layer exists as 'AnimationLayer'
 
 
 ---
