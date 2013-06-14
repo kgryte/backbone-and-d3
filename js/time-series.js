@@ -155,13 +155,13 @@ var ChartBase = Backbone.View.extend({
 
 	render: function() {
 
-		this.createCanvas();
+		this.initCanvas();
 
 		return this;
 
 	},
 
-	createCanvas: function() {
+	initCanvas: function() {
 
 		// Initialize the layers object:
 		this.layer = {};
@@ -222,8 +222,8 @@ var ChartArea = ChartBase.extend({
 	render: function() {
 
 		// [1] Create the canvas, [2] Generate the axes
-		this.createCanvas()
-			.axes();
+		this.initCanvas()
+			.initAxes();
 
 		return this;
 
@@ -231,7 +231,7 @@ var ChartArea = ChartBase.extend({
 
 
 
-	axes: function() {
+	initAxes: function() {
 
 		// Extend the layer object:
 		this.layer.axis = {};
@@ -471,11 +471,11 @@ var DataLayer = ChartArea.extend({
 	initialize: function( options ) {		
 		
 		// Extract the data from the collection:
-		this.getData();
+		this.initData();
 
 	},
 
-	getData: function() {
+	initData: function() {
 
 		// Map the collection to a format suitable for the D3 API:
 		this.data = this.collection.map( function(d) { 
@@ -489,8 +489,8 @@ var DataLayer = ChartArea.extend({
 	render: function() {
 
 		// [1] Create the canvas, [2] Generate the axes, [3] Bind the data, [4] Plot the data
-		this.createCanvas()
-			.axes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
+		this.initCanvas()
+			.initAxes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
 			.bindData()
 			.plot();
 			
@@ -615,9 +615,9 @@ var InteractionLayer = ListenerLayer.extend({
 
 	render: function() {
 
-		this.createCanvas()		// Create the canvas layer
-			.getData()			// Get the data from our collection
-			.axes()				// Create the axes layer
+		this.initCanvas()		// Create the canvas layer
+			.initData()			// Get the data from our collection
+			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
 			.plot()				// Plot the data
 			.bindInteration()	// Bind the interaction behavior
@@ -696,15 +696,15 @@ var AnimationLayer = InteractionLayer.extend({
 
 	render: function() {
 
-		this.createCanvas()					// Create the canvas layer
-			.getData()						// Get the data from our collection
-			.axes()							// Create the axes layer
+		this.initCanvas()					// Create the canvas layer
+			.initData()						// Get the data from our collection
+			.initAxes()						// Create the axes layer
 			.bindData()						// Bind the data and initialize the paths layer
 			.initAnimation( )				// Setup the selection for transitions
 			.plot()							// Plot the data
 			.bindInteraction()				// Bind the interaction behavior
 			.bindAnimation( )				// Bind the animations
-			.bindListeners(); 	// Bind listeners so that views update upon model changes
+			.bindListeners(); 				// Bind listeners so that views update upon model changes
 
 	},
 
