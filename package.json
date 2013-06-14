@@ -1,0 +1,20 @@
+{
+	"name": "d3.mvc",
+	"version": "0.0.1",
+	"description": "An MV* reusable chart framework built on top of D3.js",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/kgryte/backbone-and-d3.git"
+	},
+	"keywords": [
+		"d3.js",
+		"mvc",
+		"visualization",
+		"reusable chart"
+	],
+	"author": {
+		"name": "Kristofer Gryte",
+		"url": "http://www.kgryte.com"
+	},
+	"license": "MIT"
+}

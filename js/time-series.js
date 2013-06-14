@@ -22,6 +22,11 @@
 *		[8] Support one to many time series --> m-element vector for 'y'
 *		[9] Time series colors (default ordering) --> no, just set a class for each time series and use CSS.
 *		[10] Ensure standard data representation
+*
+*
+*	 Copyright (c) 2013. Kristofer Gryte. http://www.kgryte.com
+*	 License: MIT (http://www.opensource.org/licenses/mit-license.php)
+*
 */
 
 
@@ -78,7 +83,20 @@ var ChartModel = Backbone.Model.extend({
 			height: 500
 		},
 		xLabel: 'x',
-		yLabel: 'y'
+		yLabel: 'y',
+		colors: {
+			'g': 'rgba(0,255,0,0.8)',
+			'r': 'rgba(255,0,0,0.8)',
+			'k': 'rgba(0,0,0,0.8)',
+			'b': 'rgba(0,0,255,0.8)'
+		},
+		interpolation: 'linear',
+		transitions: {
+			'onEnter': {
+				'delay': 1000,
+				'easing': 'linear'
+			}
+		}
 	}
 
 });
@@ -139,8 +157,12 @@ var ChartBase = Backbone.View.extend({
 		this.layer.base = d3.select( element ).append("svg:svg")
 			.attr('width', canvas.width)
 			.attr('height', canvas.height)
-			.append("svg:g")
-				.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+			.attr('class', 'base');
+
+		// Initialize the chart area:
+		this.layer.chart = this.layer.base.append("svg:g")
+				.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+				.attr('class', 'chart');
 
 		return this;
 
@@ -198,7 +220,7 @@ var ChartArea = ChartBase.extend({
 			yAxis = this.model.get('yAxis');		
 
 		// Create the axes:
-		this.layer.axis.x = this.layer.base.append("svg:g")
+		this.layer.axis.x = this.layer.chart.append("svg:g")
 			.attr("class", "x axis")
 			.attr("transform", "translate(0," + graph.height + ")")
 			.call( xAxis );
@@ -207,9 +229,10 @@ var ChartArea = ChartBase.extend({
 			.attr("y", 40)
 			.attr("x", graph.width / 2)
 			.attr("text-anchor", "middle")
+			.attr("class", "label")
 			.text( xLabel );
 
-		this.layer.axis.y = this.layer.base.append("svg:g")
+		this.layer.axis.y = this.layer.chart.append("svg:g")
 			.attr("class", "y axis")
 			.call( yAxis );
 
@@ -219,6 +242,7 @@ var ChartArea = ChartBase.extend({
 			.attr("dy", ".71em")
 			.attr("x", -(graph.height / 2))
 			.attr("text-anchor", "middle")
+			.attr("class", "label")
 			.text( yLabel );
 
 		return this;
@@ -343,8 +367,7 @@ var ChartArea = ChartBase.extend({
 var LineChart = ChartArea.extend({
 
 	initialize: function( options ) {		
-		//
-
+		
 		// Extract the data from the collection:
 		this.getData();
 
@@ -361,19 +384,13 @@ var LineChart = ChartArea.extend({
 
 	},
 
-	updateData: function() {
-
-		// When the model updates...
-
-	},
-
 	render: function() {
 
-		// [1] Create the canvas, [2] Generate the axes, [3] Display the data
+		// [1] Create the canvas, [2] Display the data, [3] Generate the axes
 		this.createCanvas()
-			.axes()
+			.axes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
 			.show();
-
+			
 		return this;
 
 	},
@@ -384,6 +401,14 @@ var LineChart = ChartArea.extend({
 		// Extend the layer object:
 		this.layer.data = {};
 
+		// Get the color choices:
+		var colorTable = this.model.get('colors'),
+			colorKeys = Object.keys(colorTable), // this should work in most modern browsers
+			numColors = colorKeys.length;
+			
+		// Get the x scale:
+		var xScale = this.model.get('xScale');
+
 		// Create the path generator:
 		this.line();
 
@@ -391,20 +416,32 @@ var LineChart = ChartArea.extend({
 		var line = this.model.get('line');
 
 		// Bind the data:
-		this.layer.data.base = this.layer.base.selectAll(".data-series")
+		this.layer.data.base = this.layer.chart.selectAll(".data-series")
 			.data( this.data ) // data is an array of arrays
-			.enter()
+		  .enter()
 			.append("svg:g")
 				.attr("class", "data-series");
+
+		// Create the onEnter transition:
+		this.onEnter();
+
+		// Get the onEnter transition:
+		var onEnter = this.model.get('onEnter');
 
 		// Create the line paths:
 		this.layer.data.paths = this.layer.data.base.append("svg:path")
 			.attr("class", function(d,i) { 
 				return "line " + "line" + i; 
 			})
+			.attr("transform", "translate(" + xScale(-100) + ")")
 			.attr("d", function(d,i) { 
 				return line( d ); 
-			} );
+			} )
+			.style("stroke", function(d,i) {
+				// Loop back through the colors if we run out!
+				return colorTable[ colorKeys[ i % numColors ] ];
+			})
+			.call( onEnter );
 
 		return this;
 		
@@ -413,14 +450,14 @@ var LineChart = ChartArea.extend({
 
 	line: function( __ ) {
 
+		// Get the scales:
+		var xScale = this.model.get('xScale'),
+			yScale = this.model.get('yScale');
+		
 		var line = d3.svg.line();
 		if (!arguments.length) {
 			// Set the default:
 
-			// Get the scales:
-			var xScale = this.model.get('xScale'),
-				yScale = this.model.get('yScale');
-		
 			line
 				.x( function(d) { return xScale( d[0] ); } )
 				.y( function(d) { return yScale( d[1] ); } );
@@ -435,6 +472,45 @@ var LineChart = ChartArea.extend({
 
 		return this;
 			
+	},
+
+	onEnter: function( __ ) {
+
+		// Get the scales:
+		var xScale = this.model.get('xScale'),
+			yScale = this.model.get('yScale');
+
+		var onEnter;
+		if (!arguments.length) {
+
+			var props = this.model.get('transitions'),
+				delay = props.onEnter.delay,
+				easing = props.onEnter.easing;
+
+			onEnter = function() {
+				return this.transition()
+					.duration( delay )
+					.ease( easing )
+					.attr("transform", "translate(" + xScale(0.5) + ")");
+				};
+		}else {
+			// Allow external setting of the transition onEnter:
+			onEnter = __;
+		}; // end IF/ELSE
+
+		// Update our chart model:
+		this.model.set('onEnter', onEnter);
+
+		return this;
+
+	},
+
+	onUpdate: function() {
+		// TBD
+	},
+
+	onExit: function() {
+		// TBD
 	},
 
 
