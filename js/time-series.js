@@ -17,9 +17,9 @@
 %		[3] Parse input options for view
 %		[4] Stipulate updates
 %		[5] Figure out how to handle the data. Currently, data is duplicated.
-*		[6] Model simulation facilities
+*		[6] 
 *		[7] Demonstrate that changes in model values actually enact changes in view.
-*		[8] Support one to many time series --> m-element vector for 'y'
+*		[8] Hover/Highlight
 *		[9] Time series colors (default ordering) --> no, just set a class for each time series and use CSS.
 *		[10] Ensure standard data representation
 *
@@ -95,6 +95,14 @@ var ChartModel = Backbone.Model.extend({
 			'onEnter': {
 				'delay': 1000,
 				'easing': 'linear'
+			},
+			'onUpdate': {
+				'delay': 1000,
+				'easing': 'linear'
+			},
+			'onExit': {
+				'delay': 1000,
+				'easing': 'linear'
 			}
 		}
 	}
@@ -108,11 +116,11 @@ var ChartModel = Backbone.Model.extend({
 //////////////////////
 
 
-// A line is a collection of data points:
+// A line chart is a collection of data series, each a collection of data points:
 var DataCollection = Backbone.Collection.extend({
 
-	// A data point will serve as the basic unit for our collection:
-	model: DataPoint
+	// A data series will serve as the basic unit for our collection:
+	model: DataSeries
 
 });
 
