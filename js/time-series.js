@@ -12,11 +12,11 @@
 *
 *
 *	TODO:
-%		[1] Decouple view 'data' from view itself. Create a chart model (?)
+*		[1] Decouple view 'data' from view itself. Create a chart model (?)
 *		[2] Validate model data
-%		[3] Parse input options for view
-%		[4] Stipulate updates
-%		[5] Figure out how to handle the data. Currently, data is duplicated.
+*		[3] Parse input options for view
+*		[4] Stipulate updates
+*		[5] Figure out how to handle the data. Currently, data is duplicated.
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
 *		[7] Demonstrate that changes in model values actually enact changes in view.
 *		[8] Hover/Highlight
@@ -107,18 +107,22 @@ var ChartModel = Backbone.Model.extend({
 		// Transition parameters for animation:
 		transitions: {
 			'onEnter': {
-				'delay': 1000,
+				'duration': 1000,
 				'easing': 'linear'
 			},
 			'onUpdate': {
-				'delay': 1000,
+				'duration': 1000,
 				'easing': 'linear'
 			},
 			'onExit': {
-				'delay': 1000,
+				'duration': 1000,
 				'easing': 'linear'
 			}
-		}
+		}, 
+
+		// Plot mode:
+		mode: 'window' // options: window, add, dynamic, (others?)
+
 	}
 
 });
@@ -331,7 +335,7 @@ var ChartArea = ChartBase.extend({
 
 		xScale.domain( xDomain )
 			.range( [0, width] );
-			
+
 
 		// Update our chart model:
 		this.model.set('xScale', xScale);
@@ -368,7 +372,7 @@ var ChartArea = ChartBase.extend({
 	    				return dataPt[1]; 
 	    			}); 
     			}) 
-    		];
+			];
 
 		} else if (yDomain[0] === 'min') {
 
@@ -580,7 +584,77 @@ var DataLayer = ChartArea.extend({
 
 
 	update: function() {
-		// TBD
+
+		var duration = 10; // this parameter should be tuned to the velocity of incoming data
+
+		// Update the scales and axis:
+		this.xScale()
+			.yScale()
+			.xAxis()
+			.yAxis();
+
+		var xAxis = this.model.get('xAxis'),
+			yAxis = this.model.get('yAxis');		
+
+		// Update the paths:
+		this.layer.data.paths.attr('d', function(d,i) { 
+				return line( d ); 
+			})
+			.attr('transform', null);
+
+		// Run the axis transition:
+		this.layer.axis.x.transition()
+			.duration( 10 ) 
+			.ease( "linear" )
+			.call( xAxis );
+
+		this.layer.axis.y.transition()
+			.duration( 10 )
+			.ease( "linear" )
+			.call( yAxis );
+
+		// Initialize the path transition:
+		this.layer.data.paths.transition()
+			.duration( 10 )
+			.ease( "linear" );
+					
+		
+		switch (mode) {
+
+			case 'window':
+
+				// Slide the line to the left:
+				this.layer.data.paths.attr('transform', function(d) {
+					// Compute the difference between the first two data points: (this accts for possibility that data is an event driven process and not a discrete data series)
+					var diff = d[0][0] - d[1][0];
+					return 'translate(' + this.xScale(diff) + ')'; 
+				});
+
+
+				break;
+
+			case 'add':
+
+				// Nothing to do. Data is just added to the path.
+
+				break;
+
+			case 'dynamic':
+
+				// Data is changed in place. Meaning the path and axes may update, but we do not need to transform the path.
+
+				break;
+
+			default:
+				console.log('WARNING:unrecognized transition.');
+				break;
+
+		}; // end SWITCH mode
+
+		
+
+
+
 	}
 
 
@@ -750,13 +824,13 @@ var AnimationLayer = InteractionLayer.extend({
 		if (!arguments.length) {
 
 			var props = this.model.get('transitions'),
-				delay = props.onEnter.delay,
+				duration = props.onEnter.duration,
 				easing = props.onEnter.easing,
 				xDomain = xScale.domain();
 
 			onEnter = function() {
 				return this.transition()
-					.duration( delay )
+					.duration( duration )
 					.ease( easing )
 					.attr("transform", "translate(" + xScale( xDomain[0] ) + ")");
 				};
@@ -772,8 +846,23 @@ var AnimationLayer = InteractionLayer.extend({
 
 	},
 
-	onUpdate: function() {
-		// TBD
+	onUpdate: function( __ ) {
+
+		var onUpdate;
+		if (!arguments.length) {
+		
+			// TBD
+
+		} else {
+			// Allow external setting of the transition onUpdate:
+			onUpdate = __;
+		}; // end IF/ELSE
+
+		// Update our chart model:
+		this.model.set('onUpdate', onUpdate);
+
+		return this;
+
 	},
 
 	onExit: function() {
