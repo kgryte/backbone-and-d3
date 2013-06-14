@@ -1,7 +1,15 @@
-backbone-and-d3
+Backbone.js + D3.js
 ===============
 
-Backbone.js + D3.js
+<a href="http://www.d3js.org" target="_blank">D3.js</a> has quickly become the visualization kernel for data visualization on the web, and <a href="http://backbonejs.org/" target="_blank">Backbone.js</a> is an MV* framework used frequently for its flexibility and ease-of-use. 
+
+D3 is a low-level framework for creating data-driven documents, which has empowered developers to create highly bespoke and unique data visualizations.  D3 development is not without downside, however, as development typically entails considerable refactoring when attempting to apply a similar design framework in different data contexts.
+
+Recently, the idea of reusable charts has gained considerable traction. The primary aim is to develop a consistent chart API to facilitate code reuse and modularity. While several efforts have attempted to create reusable chart APIs building atop D3, most of these have followed a similar declarative paradigm, as originally outlined by <a href="http://bost.ocks.org/mike/chart/" target="_blank">Mike Bostock</a>, D3's principle maintainer. This approach has its merits, allowing a consistent API through closures.
+
+Nevertheless, the closure approach requires that we first define exactly what can and what cannot be accessible. Once defined, the result is a monolithic function encompassing all behavior and the only way of changing behavior is by directly modifying the source code. In constract, we may prefer an approach which permits extensibility, similar to that which we find in OOP paradigm class hierarchies. 
+
+Backbone provides such facilities through its `extend' method. Hence, we may ask whether we can leverage Backbone and D3 to create a framework which explicitly separates concerns pertaining to data models and views and explicitly addresses the layered nature of statistical graphics.
 
 
 
@@ -61,6 +69,20 @@ This implementation uses multiple libraries/frameworks.
 * Backbone.js: an MV* framework.
 * Underscore.js: a utility library used by Backbone.js
 * jQuery.js: a general purpose library
+
+
+
+---
+### References
+
+Several works have influenced this implementation. In no particular order:
+* Mike Bostock's <a href="http://bost.ocks.org/mike/chart/" target="_blank">Towards Reusable Charts</a>
+* Bocoup's <a href="http://weblog.bocoup.com/reusability-with-d3/" target="_blank">Reusability with D3</a> (and Github <a href="https://github.com/jugglinmike/d3-experiments" target="_blank">repository</a>)
+* Shirley Wu's <a href="http://shirley.quora.com/Marrying-Backbone-js-and-D3-js" target="_blank">Marrying Backbone.js and D3.js</a>
+* <a href="http://www.twitter.com/jtuulos" target="_blank">@jtuulos</a> talk at the <a href="http://jtuulos.github.io/bayd3-may2013/#/" target="_blank">San Francisco D3.js Meetup</a>
+* <a href="http://www.twitter.com/milr0c" target="_blank">@milr0c</a> talk at the <a href="http://bl.ocks.org/milroc/raw/5553051/#0" target="_blank">San Francisco D3.js meetup</a> and associated <a href="http://bl.ocks.org/milroc/5522467" target="_blank">Gist</a>
+* Christophe Viau's book <a href="https://gumroad.com/l/vyYr/" target="blank">Developing a D3.js Edge</a>
+* Trifacta's <a href="https://github.com/trifacta/vega/wiki/Tutorial" target="_blank">Vega</a>
 
 
 
