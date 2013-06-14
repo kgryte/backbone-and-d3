@@ -7,7 +7,7 @@ D3 is a low-level framework for creating data-driven documents, which has empowe
 
 Recently, the idea of reusable charts has gained considerable traction. The primary aim is to develop a consistent chart API to facilitate code reuse and modularity. While several efforts have attempted to create reusable chart APIs building atop D3, most of these have followed a similar declarative paradigm, as originally outlined by <a href="http://bost.ocks.org/mike/chart/" target="_blank">Mike Bostock</a>, D3's principle maintainer. This approach has its merits, allowing a consistent API through closures.
 
-Nevertheless, the closure approach requires that we first define exactly what can and what cannot be accessible. Once defined, the result is a monolithic function encompassing all behavior and the only way of changing behavior is by directly modifying the source code. In constract, we may prefer an approach which permits extensibility, similar to that which we find in OOP paradigm class hierarchies. 
+Nevertheless, the closure approach requires that we first define exactly what can and what cannot be accessible. Once defined, the result is a monolithic function encompassing all behavior and the only way of changing behavior is by directly modifying the source code. In contrast, we may prefer an approach which permits extensibility, similar to that which we find in OOP paradigm class hierarchies. 
 
 Backbone provides such facilities through its `extend' method. Hence, we may ask whether we can leverage Backbone and D3 to create a framework which explicitly separates concerns pertaining to data models and views and explicitly addresses the layered nature of statistical graphics.
 
@@ -37,8 +37,8 @@ Multiple layers comprise a chart.
 * ChartBase: the layer which creates the base canvas and defines chart dimensions
 * ChartArea: the layer which creates axes (lines, ticks, labels) and specifies the x and y scales
 * LineChart: the layer which actually plots the data
-* AnimatedLineChart: the layer which introduces transition animations for various lifecycle events
 * InteractiveLineChart: the layer which enables user interaction, e.g., providing additional context upon hover
+* AnimatedLineChart: the layer which introduces transition animations for various lifecycle events
 
 
 ---

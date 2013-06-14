@@ -38,7 +38,12 @@ function model( filePath, options, clbk ) {
 	var _model = new Backbone.Model();
 
 	// Instantiate the Chart Model:
-	var _chart = new ChartModel();
+	var _chart = new ChartModel({
+		canvas: {
+			width: $(options.el).width(),
+			height: 300
+		}
+	});
 
 	_model.set('chart', _chart);
 		
@@ -60,47 +65,49 @@ function model( filePath, options, clbk ) {
 
 	});
 
+	function json2array( json ) {
+		//
+		// Converter to adhere to DataCollection API.
+		//
+		//	* This helper will probably be unique to raw data and application.
+		//
+
+		// Here, the data is of the form:
+		//	{
+		//		'x': #,
+		//		'y': []	
+		//	}
+		//
+
+		// Expand the data into M Nx2 matrices (i.e., one matrix for each data series)
+
+		data = [];
+
+		// Determine the number of data series:
+		// NOTE: We assume that each value for 'y' is the same length
+		var M = json[0].y.length; 
+		
+		// Initialize the array:
+		for (var m = 0; m < M; m++) {
+			data[m] = {
+				'dataSeries': []
+			};
+		}; // end FOR m
+
+		_.each( json, function(d,i)  {
+			for (var m = 0; m < M; m++) {
+				data[m]['dataSeries'][i] = [ d.x, d.y[m] ];
+			}; // end FOR m
+		});
+
+		return data;
+
+	}; // end FUNCTION json2array( json )
+
+
 };
 
 
-function json2array( json ) {
-	//
-	// Converter to adhere to DataCollection API.
-	//
-	//	* This helper will probably be unique to raw data and application.
-	//
-
-	// Here, the data is of the form:
-	//	{
-	//		'x': #,
-	//		'y': []	
-	//	}
-	//
-
-	// Expand the data into M Nx2 matrices (i.e., one matrix for each data series)
-
-	data = [];
-
-	// Determine the number of data series:
-	// NOTE: We assume that each value for 'y' is the same length
-	var M = json[0].y.length; 
-	
-	// Initialize the array:
-	for (var m = 0; m < M; m++) {
-		data[m] = {
-			'dataSeries': []
-		};
-	}; // end FOR m
-
-	_.each( json, function(d,i)  {
-		for (var m = 0; m < M; m++) {
-			data[m]['dataSeries'][i] = [ d.x, d.y[m] ];
-		}; // end FOR m
-	});
-
-	return data;
-
-}; // end FUNCTION json2array( json )
 
 
 
@@ -118,5 +125,15 @@ function view( model, options ) {
 		model: model.get('chart')
 	}).render();
 
+	/*
+	counter = 0;
+	setInterval( function() {
+		var chartModel = model.get('chart');
+		chartModel.set({
+			yDomain: [0, counter+counter*100] 
+		});
+		counter++;
+	}, 1000);
+	*/
 
 }; // end FUNCTION view()
