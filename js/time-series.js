@@ -127,10 +127,6 @@ var DataCollection = Backbone.Collection.extend({
 // Create the base chart layer (the canvas):
 var ChartBase = Backbone.View.extend({
 
-	initialize: function( ) {
-		//
-	},
-
 	render: function() {
 
 		this.createCanvas();
@@ -183,10 +179,6 @@ var ChartBase = Backbone.View.extend({
 
 // Create the Axes layer:
 var ChartArea = ChartBase.extend({
-
-	initialize: function( options ) {
-
-	},
 
 	render: function() {
 
@@ -460,7 +452,8 @@ var LineChart = ChartArea.extend({
 
 			line
 				.x( function(d) { return xScale( d[0] ); } )
-				.y( function(d) { return yScale( d[1] ); } );
+				.y( function(d) { return yScale( d[1] ); } )
+				.interpolate('linear');
 
 		}else {
 			// Allow external setting of the line path:
