@@ -12,20 +12,22 @@
 *
 *
 *	TODO:
-*		[1] Decouple view 'data' from view itself. Create a chart model (?)
+*		[1] Decouple view 'data' from view itself. Create a chart model (?) --> a work in progress
 *		[2] Validate model data
 *		[3] Parse input options for view
 *		[4] Stipulate updates
-*		[5] Figure out how to handle the data. Currently, data is duplicated.
+*		[5] Note that xScale and yScale are polymorphic in the data layer --> this makes sense due to data binding; data allows us to calculate domains; each layer should be independent of children inheritors.
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
-*		[7] Demonstrate that changes in model values actually enact changes in view.
-*		[8] Hover/Highlight
+*		[7] 
+*		[8] Hover/Highlight --> should individual circles be created and hidden, shown on hover? Tooltip to obtain values? 
 *		[9] Time series colors (include more classes)
 *		[10] Ensure standard data representation
 *		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
 *		[12] Switch the order such that axes plotted on top of data (?)
 *		[13] Bind change events so views auto-update when model changes
-*		[14] Address possibility that more than one canvas may be generated in a page; in which case, need unique ids for clipPaths
+*		[14] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus)
+*		[15] 
+*
 *
 *
 *	 Copyright (c) 2013. Kristofer Gryte. http://www.kgryte.com
@@ -45,7 +47,8 @@ var DataPoint = Backbone.Model.extend({
 	// Set the default coordinates for an individual data point:
 	defaults: function() {
 		return {
-			'datum': [0,0] // default is 2-dimensions
+			'x': 0, // default is two-dimensions
+			'y': 0
 		};
 	},
 
@@ -56,7 +59,7 @@ var DataPoint = Backbone.Model.extend({
 
 
 // Individual data series:
-var DataSeries = DataPoint.extend( {
+var DataSeries = Backbone.NestedModel.extend( {
 
 	// Set the default format for an individual data series:
 	defaults: function() {
@@ -83,7 +86,7 @@ var ChartModel = Backbone.Model.extend({
 			top: 20,
 			right: 20,
 			bottom: 50,
-			left: 70
+			left: 80
 		},
 		canvas: {
 			width: 960,
@@ -104,8 +107,8 @@ var ChartModel = Backbone.Model.extend({
 		// Data smoothing:
 		interpolation: 'linear',
 
-		// Transition parameters for animation:
-		transitions: {
+		// Animation parameters:
+		animation: {
 			'onEnter': {
 				'duration': 1000,
 				'easing': 'linear'
@@ -120,7 +123,23 @@ var ChartModel = Backbone.Model.extend({
 			}
 		}, 
 
-		// Plot mode:
+		// Transition parameters:
+		transition: {
+			'onEnter': {
+				'duration': 1000,
+				'easing': 'linear'
+			},
+			'onUpdate': {
+				'duration': 1000, // this parameter should be tuned to the velocity of incoming data
+				'easing': 'linear'
+			},
+			'onExit': {
+				'duration': 1000,
+				'easing': 'linear'
+			}
+		},
+
+		// Plot mode: (primarily targeted toward real-time data feeds)
 		mode: 'window' // options: window, add, dynamic, (others?)
 
 	}
@@ -134,7 +153,7 @@ var ChartModel = Backbone.Model.extend({
 //////////////////////
 
 
-// A line chart is a collection of data series, each a collection of data points:
+// A line chart is a set of data series, each a collection of data points:
 var DataCollection = Backbone.Collection.extend({
 
 	// A data series will serve as the basic unit for our collection:
@@ -184,7 +203,7 @@ var ChartBase = Backbone.View.extend({
 		this.layer.base = d3.select( element ).append("svg:svg")
 			.attr('width', canvas.width)
 			.attr('height', canvas.height)
-			.attr('class', 'base');
+			.attr('class', 'base mvcChart');
 
 		// Initialize the chart area:
 		this.layer.chart = this.layer.base.append("svg:g")
@@ -192,9 +211,14 @@ var ChartBase = Backbone.View.extend({
 			.attr('class', 'chart');
 
 		// Append a path clipper, defining the data viewport:
+		var numCharts = d3.selectAll('.mvcChart')[0].length,
+			clipPathID = 'graphClipPath' + numCharts;
+
+		this.model.set( 'clipPath', '#' + clipPathID );
+
 		this.layer.chart.append("svg:defs")
 			.append("svg:clipPath")
-				.attr("id", "graphClipPath")
+				.attr("id", clipPathID)
 				.append("svg:rect")
 					.attr("width", graph.width)
 					.attr("height", graph.height);
@@ -220,7 +244,7 @@ var ChartBase = Backbone.View.extend({
 var ChartArea = ChartBase.extend({
 
 	initialize: function( options ) {
-		// This overrides an inherited initialize functions.
+		// This overrides any inherited initialize functions.
 	},
 
 	render: function() {
@@ -232,8 +256,6 @@ var ChartArea = ChartBase.extend({
 		return this;
 
 	},
-
-
 
 	initAxes: function() {
 
@@ -295,47 +317,11 @@ var ChartArea = ChartBase.extend({
 			xScale = __; 
 		}; // end IF/ELSE
 
-		// Get data from the Chart Model:
-		var width = this.model.get('graph').width,
-			xDomain = this.model.get('xDomain');
-
-		// Update the scale domain and range:
-		if (xDomain.length < 2) {
-			// Calculate the domain:
-			xDomain = [
-				d3.min( this.data, function(d) { 
-					return d3.min( d, function(dataPt) { 
-						return dataPt[0]; 
-					}); 
-				} ),
-				d3.max( this.data, function(d) { 
-					return d3.max( d, function(dataPt) { 
-						return dataPt[0]; 
-					});
-				})
-			];
-
-		} else if (xDomain[0] === 'min') {
-
-			xDomain[0] = d3.min( this.data, function(d) { 
-				return d3.min( d, function(dataPt) { 
-					return dataPt[0]; 
-				}); 
-			});
-
-		} else if (xDomain[1] === 'max') {
-
-			xDomain[1] = d3.max( this.data, function(d) { 
-				return d3.max( d, function(dataPt) { 
-					return dataPt[0]; 
-				}); 
-			});
-
-		}; // end IF/ELSEIF/ELSEIF
-
-		xScale.domain( xDomain )
-			.range( [0, width] );
-
+		// Get the graph width:
+		var width = this.model.get('graph').width;
+		
+		// Set the scale range:
+		xScale.range( [0, width] );
 
 		// Update our chart model:
 		this.model.set('xScale', xScale);
@@ -354,46 +340,11 @@ var ChartArea = ChartBase.extend({
 			yScale = __; 
 		}; // end IF/ELSE
 
-		// Get Chart Model data:
-		var height = this.model.get('graph').height,
-			yDomain = this.model.get('yDomain');
+		// Get the graph height:
+		var height = this.model.get('graph').height;
 
-		// Update the scale domain and range:
-		if (yDomain.length < 2) {
-			// Calculate the domain:
-			yDomain = [
-				d3.min( this.data, function(d) { 
-					return d3.min( d, function(dataPt) { 
-						return dataPt[1]; 
-					}); 
-				}),
-	    		d3.max( this.data, function(d) { 
-	    			return d3.max( d, function(dataPt) { 
-	    				return dataPt[1]; 
-	    			}); 
-    			}) 
-			];
-
-		} else if (yDomain[0] === 'min') {
-
-			yDomain[0] = d3.min( this.data, function(d) { 
-				return d3.min( d, function(dataPt) { 
-					return dataPt[1]; 
-				}); 
-			});
-
-		} else if (yDomain[1] === 'max') {
-
-			yDomain[1] = d3.max( this.data, function(d) { 
-				return d3.max( d, function(dataPt) { 
-					return dataPt[1]; 
-				}); 
-			});
-
-		}; // end IF/ELSEIF/ELSEIF
-
-		yScale.domain( yDomain )
-			.range( [height, 0] );
+		// Set the scale range:
+		yScale.range( [height, 0] );
 
 		// Update our chart model:
 		this.model.set('yScale', yScale);	
@@ -472,28 +423,15 @@ var ChartArea = ChartBase.extend({
 // Create the line chart layer:
 var DataLayer = ChartArea.extend({
 
-	initialize: function( options ) {		
-		
-		// Extract the data from the collection:
-		this.initData();
-
-	},
-
-	initData: function() {
-
-		// Map the collection to a format suitable for the D3 API:
-		this.data = this.collection.map( function(d) { 
-			return d.get('dataSeries'); 
-		} );
-
-		return this;
-
+	initialize: function( options ) {	
+		// This overrides any inherited initialize functions.
 	},
 
 	render: function() {
 
-		// [1] Create the canvas, [2] Generate the axes, [3] Bind the data, [4] Plot the data
+		// [1] Create the canvas, [2] Initialize the data, [3] Generate the axes, [4] Bind the data, [5] Plot the data
 		this.initCanvas()
+			.initData()
 			.initAxes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
 			.bindData()
 			.plot();
@@ -501,7 +439,6 @@ var DataLayer = ChartArea.extend({
 		return this;
 
 	},
-
 
 	plot: function() {
 
@@ -517,7 +454,7 @@ var DataLayer = ChartArea.extend({
 		
 		// Generate the lines:
 		this.layer.data.paths.attr("d", function(d,i) { 
-				return line( d ); 
+				return line( d.get('dataSeries') ); 
 			} )
 			.each( function(d,i) {
 				// Loop back through the colors if we run out!
@@ -529,31 +466,68 @@ var DataLayer = ChartArea.extend({
 		
 	},
 
-	bindData: function() {
+	initData: function() {
 
-		// Extend the layer object:
-		this.layer.data = {};
+		// Get the number of data series:
+		var numSeries = this.collection.length;
 
-		// Bind the data:
-		this.layer.data.base = this.layer.chart.selectAll(".data-series")
-			.data( this.data ) // data is an array of arrays
-		  .enter() // Create the enter selection
-			.append("svg:g")
-				.attr("class", "data-series");
+		// NOTE: data is an array of arrays; we perform a shallow copy to avoid duplication; we store the copy as a convenience method
+		this.data = this.collection.slice( 0, numSeries );
 
-		// Initialize the line paths:
-		this.layer.data.paths = this.layer.data.base
-			.append("svg:g") // include a path clipper to prevent layer spillover
-				.attr("clip-path", "url(#graphClipPath)")
-			.append("svg:path")
-			.attr("class", function(d,i) { 
-				return "line " + "line" + i; 
-			});
+		// Store the number of time series:
+		this.model.set('numSeries', numSeries );
+
+		// Calculate the x- and y-offsets:
+		this.model.set( { 
+			'xOffset': this.min('x'), 
+			'yOffset': this.min('y') 
+		} );
 
 		return this;
 
 	},
 
+	min: function( key ) {
+		return d3.min( this.data, function(d) { 
+			return d3.min( d.get('dataSeries'), function(dataPt) { 
+				return dataPt[ key ]; 
+			}); 
+		});
+	},
+
+	max: function( key ) {
+		return d3.max( this.data, function(d) { 
+			return d3.max( d.get('dataSeries'), function(dataPt) { 
+				return dataPt[ key ]; 
+			}); 
+		});
+	},
+
+	bindData: function() {
+
+		// Extend the layer object:
+		this.layer.data = {};
+
+		// Create a group for all data series:
+		this.layer.data.base = this.layer.chart.append("svg:g")
+				.attr("class", "data-series");
+
+		// Include a path clipper to prevent layer spillover:
+		this.layer.data.clipPath = this.layer.data.base.append("svg:g") 
+			.attr("clip-path", "url(" + this.model.get( 'clipPath' ) +  ")");
+
+		// Bind the data and initialize the path elements:
+		this.layer.data.paths = this.layer.data.clipPath.selectAll(".line")
+			.data( this.data ) 
+		  .enter() // create the enter selection
+		  	.append("svg:path")
+				.attr("class", function(d,i) { 
+					return "line " + "line" + i; 
+				});
+
+		return this;
+
+	},
 
 	line: function( __ ) {
 
@@ -566,8 +540,8 @@ var DataLayer = ChartArea.extend({
 			// Set the default:
 
 			line
-				.x( function(d) { return xScale( d[0] ); } )
-				.y( function(d) { return yScale( d[1] ); } )
+				.x( function(d) { return xScale( d.x ); } )
+				.y( function(d) { return yScale( d.y ); } )
 				.interpolate('linear');
 
 		}else {
@@ -582,66 +556,114 @@ var DataLayer = ChartArea.extend({
 			
 	},
 
+	xScale: function( __ ) {
+
+		var xScale;
+		if (!arguments.length) {
+			xScale = d3.scale.linear(); // Default
+		}else {
+			// Allow external setting of the scale:
+			xScale = __; 
+		}; // end IF/ELSE
+
+		// Get data from the Chart Model:
+		var width = this.model.get('graph').width,
+			xDomain = this.model.get('xDomain');
+
+		// Update the scale domain and range:
+		if (xDomain.length < 2) {
+			// Calculate the domain:
+			xDomain = [ this.min( 'x' ), this.max( 'x' ) ];
+
+		} else if (xDomain[0] === 'min') {
+
+			xDomain[0] = this.min( 'x' );
+
+		} else if (xDomain[1] === 'max') {
+
+			xDomain[1] = this.max( 'x' );
+
+		}; // end IF/ELSEIF/ELSEIF
+
+		xScale.domain( xDomain )
+			.range( [0, width] );
+
+		// Update our chart model:
+		this.model.set('xScale', xScale);
+
+		return this;
+
+	},
+
+	yScale: function( __ ) {
+
+		var yScale;
+		if (!arguments.length) {
+			yScale = d3.scale.linear().nice(); // Default
+		}else {
+			// Allow external setting of the scale:
+			yScale = __; 
+		}; // end IF/ELSE
+
+		// Get Chart Model data:
+		var height = this.model.get('graph').height,
+			yDomain = this.model.get('yDomain');
+
+		// Update the scale domain and range:
+		if (yDomain.length < 2) {
+			// Calculate the domain:
+			yDomain = [ this.min( 'y' ), this.max( 'y' ) ];
+
+		} else if (yDomain[0] === 'min') {
+
+			yDomain[0] = this.min( 'y' );
+
+		} else if (yDomain[1] === 'max') {
+
+			yDomain[1] = this.max( 'y' );
+
+		}; // end IF/ELSEIF/ELSEIF
+
+		yScale.domain( yDomain )
+			.range( [height, 0] );
+
+		// Update our chart model:
+		this.model.set('yScale', yScale);	
+
+		return this;
+
+	},
+
 
 	update: function() {
 
-		var duration = 10; // this parameter should be tuned to the velocity of incoming data
+		// Get the path generator:
+		var line = this.model.get('line');	
 
-		// Update the scales and axis:
-		this.xScale()
-			.yScale()
-			.xAxis()
-			.yAxis();
-
-		var xAxis = this.model.get('xAxis'),
-			yAxis = this.model.get('yAxis');		
-
-		// Update the paths:
-		this.layer.data.paths.attr('d', function(d,i) { 
-				return line( d ); 
-			})
-			.attr('transform', null);
-
-		// Run the axis transition:
-		this.layer.axis.x.transition()
-			.duration( 10 ) 
-			.ease( "linear" )
-			.call( xAxis );
-
-		this.layer.axis.y.transition()
-			.duration( 10 )
-			.ease( "linear" )
-			.call( yAxis );
-
-		// Initialize the path transition:
-		this.layer.data.paths.transition()
-			.duration( 10 )
-			.ease( "linear" );
-					
-		
-		switch (mode) {
+		switch ( this.model.get( 'mode' ) ) {
 
 			case 'window':
+				// A sliding window of constant width. Good for when we only care about recent history and having a current snapshot:
+				var selection = this.layer.data.paths,
+					xScale = this.model.get('xScale'),
+					props = this.model.get( 'transition' ).onUpdate;
 
-				// Slide the line to the left:
-				this.layer.data.paths.attr('transform', function(d) {
-					// Compute the difference between the first two data points: (this accts for possibility that data is an event driven process and not a discrete data series)
-					var diff = d[0][0] - d[1][0];
-					return 'translate(' + this.xScale(diff) + ')'; 
-				});
+				// Calculate the shift:
+				var lastVals = _.last( this.data[0].get('dataSeries'), 2 );
+				var shift = this.model.get('xOffset') - (lastVals[1].x - lastVals[0].x);
 
-
+				slideWindow( this, selection, line, xScale, shift, props );
 				break;
 
 			case 'add':
 
-				// Nothing to do. Data is just added to the path.
+				// Data is added to the path. Axes domain expands. No sliding is needed.
 
 				break;
 
 			case 'dynamic':
 
-				// Data is changed in place. Meaning the path and axes may update, but we do not need to transform the path.
+				// Data is changed in place. Meaning the path and axes may update, but we do not need to transform the path. 
 
 				break;
 
@@ -651,9 +673,49 @@ var DataLayer = ChartArea.extend({
 
 		}; // end SWITCH mode
 
-		
+
+		function slideWindow( View, selection, line, xScale, shift, props ) {
+
+			// Update the paths:
+			selection.attr('d', function(d,i) { 
+				return line( d.get('dataSeries') ); 
+			});
+
+			// Update the axes:
+			updateAxes( View, props );
+
+			// Slide the path with a transition:
+			selection.transition()
+				.duration( props.duration )
+				.ease( props.easing )
+				.attr('transform', 'translate(' + xScale( shift ) + ')');
+
+		}; // end FUNCTION slideWindow()
 
 
+		function updateAxes( View, props ) {
+
+			// Update the scales and axis:
+			View.xScale()
+				.yScale()
+				.xAxis()
+				.yAxis();
+
+			var xAxis = View.model.get('xAxis'),
+				yAxis = View.model.get('yAxis');
+			
+			// Run the axis transitions:
+			View.layer.axis.x.transition()
+				.duration( props.duration ) 
+				.ease( props.easing )
+				.call( xAxis );
+
+			View.layer.axis.y.transition()
+				.duration( props.duration )
+				.ease( props.easing )
+				.call( yAxis );
+
+		}; // end FUNCTION updateAxes()
 
 	}
 
@@ -673,6 +735,11 @@ var ListenerLayer = DataLayer.extend({
 		this.model.on('change:xDomain change:yDomain', this.updateAxes, this);
 		this.model.on('change:xDomain change:yDomain', this.plot, this);
 
+		//this.collection.on('change:dataSeries', this.update, this);
+		//this.collection.on('add:dataSeries', this.update, this);
+		this.collection.on('remove:dataSeries', this.update, this);
+		//this.collection.on('reset', this.update, this);
+
 	}
 
 
@@ -690,7 +757,7 @@ var InteractionLayer = ListenerLayer.extend({
 	render: function() {
 
 		this.initCanvas()		// Create the canvas layer
-			.initData()			// Get the data from our collection
+			.initData()			// Initialize the data
 			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
 			.plot()				// Plot the data
@@ -771,7 +838,7 @@ var AnimationLayer = InteractionLayer.extend({
 	render: function() {
 
 		this.initCanvas()					// Create the canvas layer
-			.initData()						// Get the data from our collection
+			.initData()						// Initialize the data
 			.initAxes()						// Create the axes layer
 			.bindData()						// Bind the data and initialize the paths layer
 			.initAnimation( )				// Setup the selection for transitions
@@ -823,7 +890,7 @@ var AnimationLayer = InteractionLayer.extend({
 		var onEnter;
 		if (!arguments.length) {
 
-			var props = this.model.get('transitions'),
+			var props = this.model.get('animation'),
 				duration = props.onEnter.duration,
 				easing = props.onEnter.easing,
 				xDomain = xScale.domain();
@@ -866,11 +933,10 @@ var AnimationLayer = InteractionLayer.extend({
 	},
 
 	onExit: function() {
+		
 		// TBD
+
 	}
-
-
-
 
 });
 

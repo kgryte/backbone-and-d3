@@ -63,6 +63,9 @@ function model( filePath, options, clbk ) {
 		// Run our callback, passing along our dynamic model and options:
 		clbk( _model, options );
 
+		// Run our simulator:
+		setTimeout( simulate( _data, 5000 ), 1000 ); 
+
 	});
 
 	function json2array( json ) {
@@ -79,9 +82,9 @@ function model( filePath, options, clbk ) {
 		//	}
 		//
 
-		// Expand the data into M Nx2 matrices (i.e., one matrix for each data series)
+		// Expand the data into M Nx1 object arrays (i.e., one array for each data series)
 
-		data = [];
+		var data = [];
 
 		// Determine the number of data series:
 		// NOTE: We assume that each value for 'y' is the same length
@@ -96,13 +99,47 @@ function model( filePath, options, clbk ) {
 
 		_.each( json, function(d,i)  {
 			for (var m = 0; m < M; m++) {
-				data[m]['dataSeries'][i] = [ d.x, d.y[m] ];
+				data[m]['dataSeries'][i] = {
+					'x': d.x, 
+					'y': d.y[m]
+				};
 			}; // end FOR m
 		});
 
 		return data;
 
 	}; // end FUNCTION json2array( json )
+
+
+	function simulate( collection, delay ) {
+
+		var counter = 1,
+			randn = d3.random.normal();
+		setInterval( function() {
+
+			var x = 5.5 + counter*0.02;
+			var data, yMean, yStd;
+			for (var m = 0; m < collection.length; m++) {
+
+				data = collection.at(m).get('dataSeries');
+
+				yMean = d3.mean(data, function(d) { return d.y; });
+				yStd = 1 / data.length * d3.sum(data , function(d) { return Math.pow(d.y - yMean, 2); });
+				yStd = Math.sqrt(yStd);
+
+				
+				collection.at(m).add('dataSeries', {
+					'x': x,
+					'y': yMean + yStd * randn()
+				});
+				collection.at(m).remove('dataSeries[0]');
+			}; // end FOR m
+
+			counter++;
+
+		}, delay);
+
+	}; // end FUNCTION simulate( collection, delay )
 
 
 };

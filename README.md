@@ -72,8 +72,9 @@ Classes are assigned within each chart layer, providing a more direct API for CS
 
 This implementation uses multiple libraries/frameworks.
 
-* D3.js: a visualization kernel.
-* Backbone.js: an MV* framework.
+* D3.js: a visualization kernel
+* Backbone.js: an MV* framework
+* Backbone-nested.js: a Backbone extension
 * Underscore.js: a utility library used by Backbone.js
 * jQuery.js: a general purpose library
 
