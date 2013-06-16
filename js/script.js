@@ -26,7 +26,6 @@ function controller( element ) {
 	// Initialize our model; once finished render our view.
 	model( "data/example2.json", options, view );
 
-
 }; // end FUNCTION controller()
 
 
@@ -40,13 +39,18 @@ function model( filePath, options, clbk ) {
 	// Instantiate the Chart Model:
 	var _chart = new ChartModel({
 		canvas: {
-			width: $(options.el).width(),
+			width: $(options.el).width()/2,
 			height: 300
 		}
 	});
 
 	_model.set('chart', _chart);
-		
+
+	_chart.set({
+		'brush': true,
+		'interpolation': 'monotone',
+		'animation': 'arise'
+	});
 
 	// Load our data set:
 	d3.json( filePath, function(json) {
@@ -64,7 +68,7 @@ function model( filePath, options, clbk ) {
 		clbk( _model, options );
 
 		// Run our simulator:
-		setTimeout( simulate( _data, 5000 ), 1000 ); 
+		//setTimeout( simulate( _data, 5000 ), 1000 ); 
 
 	});
 
@@ -161,16 +165,5 @@ function view( model, options ) {
 		collection: model.get('data'),
 		model: model.get('chart')
 	}).render();
-
-	/*
-	counter = 0;
-	setInterval( function() {
-		var chartModel = model.get('chart');
-		chartModel.set({
-			yDomain: [0, counter+counter*100] 
-		});
-		counter++;
-	}, 1000);
-	*/
 
 }; // end FUNCTION view()

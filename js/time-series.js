@@ -20,13 +20,15 @@
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
 *		[7] 
 *		[8] Hover/Highlight --> should individual circles be created and hidden, shown on hover? Tooltip to obtain values? 
-*		[9] Time series colors (include more classes)
+*		[9] 
 *		[10] Ensure standard data representation
 *		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
 *		[12] Switch the order such that axes plotted on top of data (?)
 *		[13] Bind change events so views auto-update when model changes
-*		[14] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus)
-*		[15] 
+*		[14] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus). Add/remove methods for new dataseries.
+*		[15] For real-time sliding window, need to establish a one data point buffer so that the left data edge matches the chart viewport.
+*		[16] Replace underscore with lo-dash (?)
+*		[17] Ability to include labels at the end of time series.
 *
 *
 *
@@ -83,14 +85,14 @@ var ChartModel = Backbone.Model.extend({
 		// Chart area specifications:
 		margin: { 
 			// for the graph, margin; for the canvas, this is padding
-			top: 20,
-			right: 20,
-			bottom: 50,
-			left: 80
+			'top': 20,
+			'right': 20,
+			'bottom': 50,
+			'left': 80
 		},
 		canvas: {
-			width: 960,
-			height: 500
+			'width': 960,
+			'height': 500
 		},
 
 		// Axis labels:
@@ -102,13 +104,14 @@ var ChartModel = Backbone.Model.extend({
 		yDomain: [0, 'max'], // yLimits
 
 		// Line colors:
-		colors: ['g','r','k','b'], // these correspond to CSS classes
+		colors: 'auto', //['g','r','k','b'], // these correspond to CSS classes; can also set to 'auto' for calculated color generation
 
 		// Data smoothing:
 		interpolation: 'linear',
 
 		// Animation parameters:
-		animation: {
+		animation: 'arise', // options: enterLeft, arise
+		animationProps: {
 			'onEnter': {
 				'duration': 1000,
 				'easing': 'linear'
@@ -140,7 +143,20 @@ var ChartModel = Backbone.Model.extend({
 		},
 
 		// Plot mode: (primarily targeted toward real-time data feeds)
-		mode: 'window' // options: window, add, dynamic, (others?)
+		mode: 'window', // options: window, add, dynamic, (others?)
+
+		// Brush settings:
+		brush: false,
+		brushProps: {
+			'height': 50,
+			'width': 960,
+			'margin': {
+				'top': 10,
+				'right': 20,
+				'bottom': 50,
+				'left': 80
+			}
+		}
 
 	}
 
@@ -442,10 +458,6 @@ var DataLayer = ChartArea.extend({
 
 	plot: function() {
 
-		// Get the color choices:
-		var colorClasses = this.model.get('colors'),
-			numColors = colorClasses.length;
-
 		// Create the path generator:
 		this.line();
 
@@ -455,12 +467,29 @@ var DataLayer = ChartArea.extend({
 		// Generate the lines:
 		this.layer.data.paths.attr("d", function(d,i) { 
 				return line( d.get('dataSeries') ); 
-			} )
-			.each( function(d,i) {
+			} );
+
+
+		if (this.model.get('colors') != 'auto') {
+			// Get the color choices:
+			var colorClasses = this.model.get('colors'),
+				numColors = colorClasses.length;
+
+			this.layer.data.paths.each( function(d,i) {
 				// Loop back through the colors if we run out!
 				var color = colorClasses[ i % numColors ];
 				d3.select(this).classed( color, 1 ); 
 			});
+
+		}else {
+			// Generate the colors:
+			var color = d3.scale.category10();
+
+			this.layer.data.paths.style('stroke', function(d,i) { 
+				return color(i);
+			});
+
+		}; // end IF/ELSE colors
 
 		return this;
 		
@@ -531,9 +560,10 @@ var DataLayer = ChartArea.extend({
 
 	line: function( __ ) {
 
-		// Get the scales:
+		// Get the scales and interpolation:
 		var xScale = this.model.get('xScale'),
-			yScale = this.model.get('yScale');
+			yScale = this.model.get('yScale'),
+			interpolation = this.model.get('interpolation');
 		
 		var line = d3.svg.line();
 		if (!arguments.length) {
@@ -542,7 +572,7 @@ var DataLayer = ChartArea.extend({
 			line
 				.x( function(d) { return xScale( d.x ); } )
 				.y( function(d) { return yScale( d.y ); } )
-				.interpolate('linear');
+				.interpolate( interpolation );
 
 		}else {
 			// Allow external setting of the line path:
@@ -751,7 +781,7 @@ var ListenerLayer = DataLayer.extend({
 var InteractionLayer = ListenerLayer.extend({
 
 	initialize: function( options ) {
-		// This overrides an inherited initialize functions.
+		// This overrides any inherited initialize functions.
 	},
 
 	render: function() {
@@ -770,7 +800,7 @@ var InteractionLayer = ListenerLayer.extend({
 
 		var selection = this.layer.data.paths;
 
-		// Set our mouse events:
+		// Initialize our hover events:
 		this.mouseover().mouseout();
 
 		// Get the events:
@@ -782,6 +812,12 @@ var InteractionLayer = ListenerLayer.extend({
 			.style('cursor', 'pointer')
 			.on('mouseover', mouseover )
 			.on('mouseout', mouseout );
+
+		// Determine if brush interaction is enabled:
+		if ( this.model.get('brush') ) {
+			this.initBrush()
+				.createBrush();
+		}; // end IF brush.on
 
 		return this;
 
@@ -821,6 +857,110 @@ var InteractionLayer = ListenerLayer.extend({
 
 		return this;
 
+	},
+
+	initBrush: function() {
+
+		// The brush is essentially its own mini chart.
+
+		// Get the brush properties:
+		var props = this.model.get('brushProps'),
+			width = this.model.get('graph').width; // this is a hack; need to allow for setting.
+
+		// Get the xScale and xAxis:
+		var xScale = this.model.get('xScale'),
+			xAxis = this.model.get('xAxis');
+
+		// Get the path generator for the main graph:
+		var line = this.model.get('line');
+
+		// Get the axis and paths layers for the main graph:
+		axisLayer = this.layer.axis.x;
+		pathLayer = this.layer.data.paths;
+
+		// Specify the brush scale:
+		var brushScale = d3.scale.linear()
+			.domain( xScale.domain() ) // same domain as our main chart
+			.range( [ 0, width ] ); // HACK!
+
+		// Specify the brush axis generator:
+		var brushAxis = d3.svg.axis()
+			.scale( brushScale )
+			.tickSize( props.height )
+			.tickPadding( -props.height/2 )
+			.orient('bottom');
+
+		// Specify the brush generator:
+		var brush = d3.svg.brush()
+			.x( brushScale )
+			.on('brush', onBrush );
+
+		// Update our chart model:
+		this.model.set( {
+			'brush': brush,
+			'brushScale': brushScale,
+			'brushAxis': brushAxis 
+		} );
+
+		function onBrush() {
+			// Get the current brush extent:
+			var extent = brush.empty() ? brushScale.domain() : brush.extent();
+
+			// Update the xScale and xAxis:
+			xScale.domain( extent );
+			axisLayer.call( xAxis );
+
+			// Redraw the chart to show only the specified extent:
+			pathLayer.attr('d', function(d,i) { 
+				return line( d.get('dataSeries') );
+			});
+		}; // end FUNCTION onBrush()
+
+		return this;
+
+	},
+
+	createBrush: function() {
+
+		// Initialize the brush layer:
+		this.layer.brush = {};
+		this.layer.brush.axis = {};
+
+		// Get the graph and brush specs:
+		var canvas = this.model.get('canvas'),
+			margin = this.model.get('margin'),
+			graph = this.model.get('graph'),
+			props = this.model.get('brushProps');
+
+		// Expand the SVG canvas: (make room for the brush)
+		this.layer.base.attr('height', canvas.height + props.margin.top + props.height + props.margin.bottom);
+
+		// Get the brush generators:
+		var brush = this.model.get('brush'),
+			brushAxis = this.model.get('brushAxis');
+
+		// Create the brush container:
+		var fromTop = canvas.height + props.margin.top;
+		this.layer.brush.chart = this.layer.base.append('svg:g')
+			.attr('class', 'brush')
+			.attr('transform', 'translate(' + props.margin.left + ',' + fromTop + ')' );
+
+		// Create the brush graph:
+		this.layer.brush.bars = this.layer.brush.chart.append('svg:g')
+			.attr('class', 'x bars')
+			.call( brush )
+			.selectAll( 'rect' )
+			.attr('y', 0)
+			.attr('height', props.height );
+
+		// Create the brush x-axis:
+		this.layer.brush.axis.x = this.layer.brush.chart.append('svg:g')
+			.attr('class', 'x axis')
+			.attr('transform', 'translate(0,' + 0 + ')')
+			.call( brushAxis );
+
+		return this;
+
 	}
 
 });
@@ -832,7 +972,7 @@ var InteractionLayer = ListenerLayer.extend({
 var AnimationLayer = InteractionLayer.extend({
 
 	initialize: function( options ) {
-		// This overrides an inherited initialize functions.
+		// This overrides any inherited initialize functions.
 	},
 
 	render: function() {
@@ -841,41 +981,99 @@ var AnimationLayer = InteractionLayer.extend({
 			.initData()						// Initialize the data
 			.initAxes()						// Create the axes layer
 			.bindData()						// Bind the data and initialize the paths layer
-			.initAnimation( )				// Setup the selection for transitions
+			.bindAnimation( )				// Setup the selection for transitions
 			.plot()							// Plot the data
 			.bindInteraction()				// Bind the interaction behavior
-			.bindAnimation( )				// Bind the animations
+			.animate( )						// Run the animations
 			.bindListeners(); 				// Bind listeners so that views update upon model changes
-
-	},
-
-	initAnimation: function( ) {
-
-		var selection = this.layer.data.paths;
-
-		// Get the x scale and domain:
-		var xScale = this.model.get('xScale'),
-			domain = xScale.domain();
-
-		// Setup the transition:
-		selection.attr("transform", "translate(" + xScale( -domain[1] ) + ")");
-
-		return this;
 
 	},
 
 	bindAnimation: function( ) {
 
-		var selection = this.layer.data.paths;
+		var selection, animationFcn;
+		switch (this.model.get('animation')) {
 
-		// Create the onEnter transition:
-		this.onEnter();
+			case 'enterLeft':
 
-		// Get the onEnter transition:
-		var onEnter = this.model.get('onEnter');
+				// Define what is going to animate:
+				selection = this.layer.data.paths;
 
-		// Animate:
-		selection.call( onEnter );
+				// Get the x scale and domain:
+				var xScale = this.model.get('xScale'),
+					xDomain = xScale.domain();
+
+				// Setup the transition:
+				selection.attr("transform", "translate(" + xScale( -xDomain[1] ) + ")");
+
+				// Set the animation function:
+				animationFcn = enterLeft;
+
+				break;
+
+			case 'arise':
+
+				// Define what is going to animate:
+				selection = this.layer.data.paths;
+
+				// Get the base layer height:
+				var height = this.model.get('canvas').height;
+
+				// Setup the transition:
+				selection.attr('transform', 'translate(0,' + height + ') scale(1,0)' );
+
+				// Set the animation function:
+				animationFcn = arise;
+
+				break;
+
+			default:
+
+				break;
+
+		}; // end SWITCH animation
+
+		// Store the selection to be animated and its associated animation:
+		this.model.set({
+			"selection": selection,
+			"animationFcn": animationFcn
+		});		
+
+		return this;
+
+		function enterLeft() {
+
+			this.attr('transform', 'translate(' + xScale( xDomain[0] ) + ')');
+
+		}; // end FUNCTION enterLeft()
+
+		function arise() {
+
+			this.attr('transform', 'translate(0,0) scale(1,1)');
+
+		}; // end FUNCTION arise()
+
+	},
+
+	animate: function( ) {
+
+		// Get the selection to be animated:
+		var selection = this.model.get('selection');
+
+		// Get the scales:
+		var xScale = this.model.get('xScale'),
+			yScale = this.model.get('yScale');
+
+		var props = this.model.get('animationProps'),
+			duration = props.onEnter.duration,
+			easing = props.onEnter.easing;
+
+		var animate = this.model.get('animationFcn');
+		
+		selection.transition()
+			.duration( duration )
+			.ease( easing )
+			.call( animate );
 
 		return this;
 
@@ -883,24 +1081,9 @@ var AnimationLayer = InteractionLayer.extend({
 
 	onEnter: function( __ ) {
 
-		// Get the scales:
-		var xScale = this.model.get('xScale'),
-			yScale = this.model.get('yScale');
-
 		var onEnter;
 		if (!arguments.length) {
-
-			var props = this.model.get('animation'),
-				duration = props.onEnter.duration,
-				easing = props.onEnter.easing,
-				xDomain = xScale.domain();
-
-			onEnter = function() {
-				return this.transition()
-					.duration( duration )
-					.ease( easing )
-					.attr("transform", "translate(" + xScale( xDomain[0] ) + ")");
-				};
+			// TBD
 		}else {
 			// Allow external setting of the transition onEnter:
 			onEnter = __;
@@ -916,10 +1099,8 @@ var AnimationLayer = InteractionLayer.extend({
 	onUpdate: function( __ ) {
 
 		var onUpdate;
-		if (!arguments.length) {
-		
+		if (!arguments.length) {		
 			// TBD
-
 		} else {
 			// Allow external setting of the transition onUpdate:
 			onUpdate = __;
