@@ -10,21 +10,36 @@
 */
 
 
+// Set various options for the graph:
+var element = 'body';
+var options = {
+	el: element,
+	data: 'data/example2.json',
+	chart: {
+		'canvas': {
+			'width': $(element).width()/2,
+			'height': 300
+		},
+		'brush': true,
+		'interpolation': 'monotone',
+		'animation': 'arise'
+	}
+};
+
 
 // Generate our graph:
-controller( 'body' );
+controller( options );
 
 
 
 // Create our flow function:
-function controller( element ) {
+function controller( options ) {
 
-	var options = {
-		el: element
-	};
+	// Get our data path:
+	var filePath = options.data;
 
 	// Initialize our model; once finished render our view.
-	model( "data/example2.json", options, view );
+	model( filePath, options, view );
 
 }; // end FUNCTION controller()
 
@@ -37,20 +52,13 @@ function model( filePath, options, clbk ) {
 	var _model = new Backbone.Model();
 
 	// Instantiate the Chart Model:
-	var _chart = new ChartModel({
-		canvas: {
-			width: $(options.el).width()/2,
-			height: 300
-		}
-	});
+	var _chart = new ChartModel( options.chart.canvas );
 
+	// Add the Chart Model to our dynamic model:
 	_model.set('chart', _chart);
 
-	_chart.set({
-		'brush': true,
-		'interpolation': 'monotone',
-		'animation': 'arise'
-	});
+	// Demonstrate that we can set options even after setting the dynamic model:
+	_chart.set( options.chart );
 
 	// Load our data set:
 	d3.json( filePath, function(json) {
@@ -61,8 +69,8 @@ function model( filePath, options, clbk ) {
 		// Instantiate the Data Model:
 		var _data = new DataCollection( dataArray );
 
+		// Add the Data Model to our dynamic model:
 		_model.set('data', _data);
-
 
 		// Run our callback, passing along our dynamic model and options:
 		clbk( _model, options );
@@ -114,7 +122,6 @@ function model( filePath, options, clbk ) {
 
 	}; // end FUNCTION json2array( json )
 
-
 	function simulate( collection, delay ) {
 
 		var counter = 1,
@@ -145,12 +152,7 @@ function model( filePath, options, clbk ) {
 
 	}; // end FUNCTION simulate( collection, delay )
 
-
-};
-
-
-
-
+}; // end FUNCTION model()
 
 
 
