@@ -958,11 +958,12 @@ var AnnotationLayer = DataLayer.extend({
 
 	initCursor: function() {
 
-		// Get the base data layer:
-		var layer = this.layer.data.base;
+		// Get the chart container and base data layers:
+		var chartLayer = this.layer.container,
+			dataLayer = this.layer.data.base;
 
 		// Add the tooltip to our annotation layer:
-		var tooltip = this.layer.container.append('div')
+		var tooltip = chartLayer.append('div')
 			.attr('class', 'data-cursor tooltip')
 			.style('opacity', 0);
 
@@ -1000,7 +1001,7 @@ var AnnotationLayer = DataLayer.extend({
 				xPos = xPos - 1;
 			}; // end IF			
 
-			layer.selectAll('.data-cursor')
+			dataLayer.selectAll('.data-cursor')
 				.data( [ data[xPos] ] )
 			  .enter().append('svg:circle')
 			  	.attr('class', 'data-cursor')
@@ -1018,7 +1019,7 @@ var AnnotationLayer = DataLayer.extend({
 		}; // end FUNCTION createCursor()
 
 		function destroyCursor() {
-			d3.selectAll('.data-cursor')
+			dataLayer.selectAll('.data-cursor')
 				.transition()
 					.call( hideTooltip )
 					.duration(200)
@@ -1029,12 +1030,15 @@ var AnnotationLayer = DataLayer.extend({
 
 		function showTooltip( transition, d ) {
 			var str = 'x: ' + d.x + '<br>y: ' + d.y;
+			// Determine the position of the chart container:
+			var pos = $(chartLayer[0][0]).position();
+			// Show the tooltip and move into position:
 			tooltip.transition()
 				.duration(200)
 				.style('opacity', 0.9);
 			tooltip.html( str )
-				.style('left', d3.event.pageX + 8 + 'px')
-				.style('top', d3.event.pageY + 'px');
+				.style('left', d3.event.pageX - pos.left + 14 + 'px')
+				.style('top', d3.event.pageY - pos.top + 'px');
 		}; // end FUNCTION showTooltip()
 
 		function hideTooltip( d ) {
