@@ -21,8 +21,12 @@ var options = {
 			'height': 300
 		},
 		'brush': true,
-		'interpolation': 'monotone',
-		'animation': 'arise'
+		'interpolation': 'linear', //monotone',
+		'animation': 'arise',
+		'title': 'Title',
+		'caption': 'Figure 1. <span class="figure-desc">Short description</span>. This is a figure caption.',
+		'legend': ['line0', 'line1', 'line2'],
+		'dataCursor': true
 	}
 };
 
@@ -76,7 +80,7 @@ function model( filePath, options, clbk ) {
 		clbk( _model, options );
 
 		// Run our simulator:
-		//setTimeout( simulate( _data, 5000 ), 1000 ); 
+		setTimeout( simulate( _data, 1100 ), 1000 ); 
 
 	});
 
@@ -138,12 +142,11 @@ function model( filePath, options, clbk ) {
 				yStd = 1 / data.length * d3.sum(data , function(d) { return Math.pow(d.y - yMean, 2); });
 				yStd = Math.sqrt(yStd);
 
-				
 				collection.at(m).add('dataSeries', {
 					'x': x,
 					'y': yMean + yStd * randn()
 				});
-				collection.at(m).remove('dataSeries[0]');
+				collection.at(m).remove('dataSeries[0]', {silent: true});
 			}; // end FOR m
 
 			counter++;

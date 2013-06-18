@@ -40,6 +40,8 @@ Multiple layers comprise a chart.
 	* this layer exists as 'ChartArea'
 * Line Chart: the layer which actually plots the data
 	* this layer exists as 'DataLayer'
+* Annotations: the layer which provides chart annotations, e.g., title, caption, data labels, etc.
+	* this layer exists as 'AnnotationLayer'
 * Listeners: a meta-layer which coordinates model updates and corresponding view changes
 	* this layer exists as 'ListenerLayer'
 * Interaction: the layer which enables user interaction, e.g., providing additional context upon hover
@@ -59,6 +61,8 @@ Classes are assigned within each chart layer, providing a more direct API for CS
 	* x: x axis
 	* y: y axis
 * label: axes labels
+* title: chart title
+* caption: chart caption
 * data-series: the group of data sets plotted, even if only 1 data set
 * line: the SVG path element for an individual data series, which is further classed in order of generation
 	* line0: first line
@@ -90,6 +94,7 @@ Several works have influenced this implementation. In no particular order:
 * <a href="http://www.twitter.com/milr0c" target="_blank">@milr0c</a> talk at the <a href="http://bl.ocks.org/milroc/raw/5553051/#0" target="_blank">San Francisco D3.js meetup</a> and associated <a href="http://bl.ocks.org/milroc/5522467" target="_blank">Gist</a>
 * Christophe Viau's book <a href="https://gumroad.com/l/vyYr/" target="blank">Developing a D3.js Edge</a>
 * Trifacta's <a href="https://github.com/trifacta/vega/wiki/Tutorial" target="_blank">Vega</a>
+* Hadley Wickham's paper <a href="http://vita.had.co.nz/" target="_blank">A layered grammar of graphics</a>
 
 
 

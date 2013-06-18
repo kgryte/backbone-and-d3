@@ -19,16 +19,19 @@
 *		[5] Note that xScale and yScale are polymorphic in the data layer --> this makes sense due to data binding; data allows us to calculate domains; each layer should be independent of children inheritors.
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
 *		[7] 
-*		[8] Hover/Highlight --> should individual circles be created and hidden, shown on hover? Tooltip to obtain values? 
+*		[8]  
 *		[9] 
 *		[10] Ensure standard data representation
 *		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
 *		[12] Switch the order such that axes plotted on top of data (?)
-*		[13] Bind change events so views auto-update when model changes
+*		[13] 
 *		[14] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus). Add/remove methods for new dataseries.
-*		[15] For real-time sliding window, need to establish a one data point buffer so that the left data edge matches the chart viewport.
+*		[15] For real-time sliding window, need to establish a one data point buffer so that the left data edge matches the chart viewport. --> Two ways: 1) create an explicit buffer; 2) fiddle with the collection updates so that the listener fires only on add but not remove. Currently, this is how the buffer is maintained. The downside is that the last time series legend lags.
 *		[16] Replace underscore with lo-dash (?)
-*		[17] Ability to include labels at the end of time series.
+*		[17] x and y accessors? Are they necessary? Could this allow for user's to define their own input data structure? e.g., array versus associative array?
+*
+*	BUGS:
+*		[1] On load, the animation transition is sometimes interrupted. This could be due to the transition() method being over-written. --> Yes! If a listener event is called, say, the user hovers/mousemoves over the plot, the transition is interrupted. 
 *
 *
 *
@@ -86,7 +89,7 @@ var ChartModel = Backbone.Model.extend({
 		margin: { 
 			// for the graph, margin; for the canvas, this is padding
 			'top': 20,
-			'right': 20,
+			'right': 80,
 			'bottom': 50,
 			'left': 80
 		},
@@ -94,6 +97,15 @@ var ChartModel = Backbone.Model.extend({
 			'width': 960,
 			'height': 500
 		},
+
+		// Title:
+		title: '',
+
+		// Caption:
+		caption: '',
+
+		// Legend:
+		legend : [], // each legend label should be a string; e.g., ['line1', 'line2', 'line3']
 
 		// Axis labels:
 		xLabel: 'x',
@@ -153,10 +165,19 @@ var ChartModel = Backbone.Model.extend({
 			'margin': {
 				'top': 10,
 				'right': 20,
-				'bottom': 50,
+				'bottom': 20,
 				'left': 80
 			}
-		}
+		},
+
+		// Listeners:
+		listeners: {
+			'chart': true,
+			'data': true
+		}, 
+
+		// Data cursor:
+		dataCursor: false
 
 	}
 
@@ -206,20 +227,24 @@ var ChartBase = Backbone.View.extend({
 		this.layer = {};
 
 		// Get the graph size:
-		this.model.set( 'graph', this.graphSize() );
+		this.model.set( '_graph', this.graphSize() );
 
 		// Create local variables to make the code less verbose:
 		var element = this.el,
 			canvas = this.model.get('canvas'),
 			margin = this.model.get('margin'),
-			graph = this.model.get('graph');
+			graph = this.model.get('_graph');
 
+		// Create an HTML <figure> container to hold the chart:
+		this.layer.container = d3.select( element ).append('figure')
+			.attr('width', canvas.width)
+			.attr('class', 'mvcChart');
 		
 		// Create the canvas:
-		this.layer.base = d3.select( element ).append("svg:svg")
+		this.layer.base = this.layer.container.append("svg:svg")
 			.attr('width', canvas.width)
 			.attr('height', canvas.height)
-			.attr('class', 'base mvcChart');
+			.attr('class', 'base');
 
 		// Initialize the chart area:
 		this.layer.chart = this.layer.base.append("svg:g")
@@ -230,7 +255,7 @@ var ChartBase = Backbone.View.extend({
 		var numCharts = d3.selectAll('.mvcChart')[0].length,
 			clipPathID = 'graphClipPath' + numCharts;
 
-		this.model.set( 'clipPath', '#' + clipPathID );
+		this.model.set( '_clipPath', '#' + clipPathID );
 
 		this.layer.chart.append("svg:defs")
 			.append("svg:clipPath")
@@ -285,12 +310,12 @@ var ChartArea = ChartBase.extend({
 			.yAxis();			
 
 		// Local variables:
-		var graph = this.model.get('graph'),
+		var graph = this.model.get('_graph'),
 			margin = this.model.get('margin'),
 			xLabel = this.model.get('xLabel'),
 			yLabel = this.model.get('yLabel'),
-			xAxis = this.model.get('xAxis'),
-			yAxis = this.model.get('yAxis');		
+			xAxis = this.model.get('_xAxis'),
+			yAxis = this.model.get('_yAxis');		
 
 		// Create the axes:
 		this.layer.axis.x = this.layer.chart.append("svg:g")
@@ -327,20 +352,20 @@ var ChartArea = ChartBase.extend({
 
 		var xScale;
 		if (!arguments.length) {
-			xScale = d3.scale.linear(); // Default
+			xScale = d3.scale.linear().nice(); // Default
 		}else {
 			// Allow external setting of the scale:
 			xScale = __; 
 		}; // end IF/ELSE
 
 		// Get the graph width:
-		var width = this.model.get('graph').width;
+		var width = this.model.get('_graph').width;
 		
 		// Set the scale range:
 		xScale.range( [0, width] );
 
 		// Update our chart model:
-		this.model.set('xScale', xScale);
+		this.model.set('_xScale', xScale);
 
 		return this;
 
@@ -357,13 +382,13 @@ var ChartArea = ChartBase.extend({
 		}; // end IF/ELSE
 
 		// Get the graph height:
-		var height = this.model.get('graph').height;
+		var height = this.model.get('_graph').height;
 
 		// Set the scale range:
 		yScale.range( [height, 0] );
 
 		// Update our chart model:
-		this.model.set('yScale', yScale);	
+		this.model.set('_yScale', yScale);	
 
 		return this;	
 			
@@ -372,7 +397,7 @@ var ChartArea = ChartBase.extend({
 	xAxis: function( __ ) {
 
 		var xAxis = d3.svg.axis()
-			.scale( this.model.get('xScale') );
+			.scale( this.model.get('_xScale') );
 
 		if (!arguments.length) {
 			xAxis.orient('bottom'); // Default
@@ -382,7 +407,7 @@ var ChartArea = ChartBase.extend({
 		}
 
 		// Update our chart model:
-		this.model.set('xAxis', xAxis);
+		this.model.set('_xAxis', xAxis);
 
 		return this;
 
@@ -391,7 +416,7 @@ var ChartArea = ChartBase.extend({
 	yAxis: function( __ ) {
 		
 		var yAxis = d3.svg.axis()
-			.scale( this.model.get('yScale') );
+			.scale( this.model.get('_yScale') );
 
 		if (!arguments.length) {
 			yAxis.orient('left'); // Default
@@ -401,7 +426,7 @@ var ChartArea = ChartBase.extend({
 		}
 
 		// Update our chart model:
-		this.model.set('yAxis', yAxis);
+		this.model.set('_yAxis', yAxis);
 
 		return this;
 
@@ -409,14 +434,25 @@ var ChartArea = ChartBase.extend({
 
 	updateAxes: function(){
 
+		var xAxis = this.model.get('_xAxis'),
+			yAxis = this.model.get('_yAxis');
+
+		// Axes:
+		this.layer.axis.x.call( xAxis );		
+		this.layer.axis.y.call( yAxis );
+
+	},
+
+	refreshAxes: function( model, newVal ) {
+
 		// Refresh our scales and axes:
 		this.xScale()
 			.yScale()
 			.xAxis()
 			.yAxis();
 
-		var xAxis = this.model.get('xAxis'),
-			yAxis = this.model.get('yAxis');	
+		var xAxis = this.model.get('_xAxis'),
+			yAxis = this.model.get('_yAxis');	
 
 		// Axes Labels
 		this.layer.axis.x.call( xAxis )
@@ -462,7 +498,7 @@ var DataLayer = ChartArea.extend({
 		this.line();
 
 		// Get the path generator:
-		var line = this.model.get('line');
+		var line = this.model.get('_line');
 		
 		// Generate the lines:
 		this.layer.data.paths.attr("d", function(d,i) { 
@@ -491,8 +527,20 @@ var DataLayer = ChartArea.extend({
 
 		}; // end IF/ELSE colors
 
+		// Initialize how the plot is updated:
+		this.update();
+
 		return this;
 		
+	},
+
+	redraw: function() {
+		// Get the path generator:
+		var line = this.model.get('_line');
+		
+		this.layer.data.paths.attr('d', function(d,i) { 
+			return line( d.get('dataSeries') );
+		});
 	},
 
 	initData: function() {
@@ -504,12 +552,12 @@ var DataLayer = ChartArea.extend({
 		this.data = this.collection.slice( 0, numSeries );
 
 		// Store the number of time series:
-		this.model.set('numSeries', numSeries );
+		this.model.set('_numSeries', numSeries );
 
 		// Calculate the x- and y-offsets:
 		this.model.set( { 
-			'xOffset': this.min('x'), 
-			'yOffset': this.min('y') 
+			'_xOffset': this.min('x'), 
+			'_yOffset': this.min('y') 
 		} );
 
 		return this;
@@ -543,7 +591,7 @@ var DataLayer = ChartArea.extend({
 
 		// Include a path clipper to prevent layer spillover:
 		this.layer.data.clipPath = this.layer.data.base.append("svg:g") 
-			.attr("clip-path", "url(" + this.model.get( 'clipPath' ) +  ")");
+			.attr("clip-path", "url(" + this.model.get( '_clipPath' ) +  ")");
 
 		// Bind the data and initialize the path elements:
 		this.layer.data.paths = this.layer.data.clipPath.selectAll(".line")
@@ -561,8 +609,8 @@ var DataLayer = ChartArea.extend({
 	line: function( __ ) {
 
 		// Get the scales and interpolation:
-		var xScale = this.model.get('xScale'),
-			yScale = this.model.get('yScale'),
+		var xScale = this.model.get('_xScale'),
+			yScale = this.model.get('_yScale'),
 			interpolation = this.model.get('interpolation');
 		
 		var line = d3.svg.line();
@@ -580,7 +628,7 @@ var DataLayer = ChartArea.extend({
 		}
 
 		// Update our chart model:
-		this.model.set('line', line);
+		this.model.set('_line', line);
 
 		return this;
 			
@@ -597,8 +645,13 @@ var DataLayer = ChartArea.extend({
 		}; // end IF/ELSE
 
 		// Get data from the Chart Model:
-		var width = this.model.get('graph').width,
-			xDomain = this.model.get('xDomain');
+		var width = this.model.get('_graph').width,
+			xDomain = [];
+
+		// Need to perform a copy:
+		for (var i = 0; i < this.model.get('xDomain').length; i++){
+			xDomain[i] = this.model.get('xDomain')[i];
+		}; // end FOR i
 
 		// Update the scale domain and range:
 		if (xDomain.length < 2) {
@@ -619,7 +672,8 @@ var DataLayer = ChartArea.extend({
 			.range( [0, width] );
 
 		// Update our chart model:
-		this.model.set('xScale', xScale);
+		this.model.set('_xScale', xScale);
+		this.model.set('_xDomain', xDomain);
 
 		return this;
 
@@ -636,8 +690,13 @@ var DataLayer = ChartArea.extend({
 		}; // end IF/ELSE
 
 		// Get Chart Model data:
-		var height = this.model.get('graph').height,
-			yDomain = this.model.get('yDomain');
+		var height = this.model.get('_graph').height,
+			yDomain = [];
+
+		// Need to perform a copy:
+		for (var i = 0; i < this.model.get('yDomain').length; i++){
+			yDomain[i] = this.model.get('yDomain')[i];
+		}; // end FOR i
 
 		// Update the scale domain and range:
 		if (yDomain.length < 2) {
@@ -658,7 +717,8 @@ var DataLayer = ChartArea.extend({
 			.range( [height, 0] );
 
 		// Update our chart model:
-		this.model.set('yScale', yScale);	
+		this.model.set('_yScale', yScale);
+		this.model.set('_yDomain', yDomain);
 
 		return this;
 
@@ -667,22 +727,13 @@ var DataLayer = ChartArea.extend({
 
 	update: function() {
 
-		// Get the path generator:
-		var line = this.model.get('line');	
-
+		var updateFcn;
 		switch ( this.model.get( 'mode' ) ) {
 
 			case 'window':
 				// A sliding window of constant width. Good for when we only care about recent history and having a current snapshot:
-				var selection = this.layer.data.paths,
-					xScale = this.model.get('xScale'),
-					props = this.model.get( 'transition' ).onUpdate;
 
-				// Calculate the shift:
-				var lastVals = _.last( this.data[0].get('dataSeries'), 2 );
-				var shift = this.model.get('xOffset') - (lastVals[1].x - lastVals[0].x);
-
-				slideWindow( this, selection, line, xScale, shift, props );
+				updateFcn = this.slideWindow;
 				break;
 
 			case 'add':
@@ -703,75 +754,344 @@ var DataLayer = ChartArea.extend({
 
 		}; // end SWITCH mode
 
+		this.model.set('_updateFcn', updateFcn);
 
-		function slideWindow( View, selection, line, xScale, shift, props ) {
+		return this;
 
-			// Update the paths:
-			selection.attr('d', function(d,i) { 
-				return line( d.get('dataSeries') ); 
-			});
-
-			// Update the axes:
-			updateAxes( View, props );
-
-			// Slide the path with a transition:
-			selection.transition()
-				.duration( props.duration )
-				.ease( props.easing )
-				.attr('transform', 'translate(' + xScale( shift ) + ')');
-
-		}; // end FUNCTION slideWindow()
+	},
 
 
-		function updateAxes( View, props ) {
+	slideWindow: function( model, updatedData ) {
 
-			// Update the scales and axis:
-			View.xScale()
-				.yScale()
-				.xAxis()
-				.yAxis();
+		// Redraw the paths and reset the translation:
+		var line = this.model.get('_line');
+		this.layer.data.paths.attr('d', function(d) {
+				return line( d.get('dataSeries') );
+			})
+			.attr('transform', null);
 
-			var xAxis = View.model.get('xAxis'),
-				yAxis = View.model.get('yAxis');
-			
-			// Run the axis transitions:
-			View.layer.axis.x.transition()
-				.duration( props.duration ) 
-				.ease( props.easing )
-				.call( xAxis );
+		// Reset yDomain to original preference; if originally specified, calculate new max and min:
+		this.yScale();
 
-			View.layer.axis.y.transition()
-				.duration( props.duration )
-				.ease( props.easing )
-				.call( yAxis );
+		// 
+		var xScale = this.model.get('_xScale'),
+			xOffset = this.model.get('_xOffset'),
+			props = this.model.get('transition').onUpdate;
 
-		}; // end FUNCTION updateAxes()
+		// Update the x domain:
+		var xMin = this.data[0].get('dataSeries')[1].x, // We assume a sorted data set
+			xMax = _.last( this.data[0].get('dataSeries') ).x,
+			xDomain = [ xMin, xMax ],
+			xOffset = xDomain[0];
+		
+		xScale.domain( xDomain );
+
+		this.model.set( {
+			'_xDomain': xDomain
+		});
+		
+		// Transition the axes:
+		this.layer.axis.x.transition()
+			.duration( props.duration ) 
+			.ease( props.easing )
+			.call( this.model.get('_xAxis') );
+		
+		this.layer.axis.y.transition()
+			.duration( props.duration )
+			.ease( props.easing )
+			.call( this.model.get('_yAxis') );					
+
+		// Calculate the shift:
+		var lastVals = _.last( this.data[0].get('dataSeries'), 2 ),
+			shift = xOffset - (lastVals[1].x - lastVals[0].x);
+
+		// Slide the path with a transition:
+		this.layer.data.paths.transition()
+			.duration( props.duration )
+			.ease( props.easing )
+			.attr('transform', 'translate(' + xScale( shift ) + ')');
+
+		return this;
 
 	}
 
+}); // end DataLayer
 
-});
 
+
+// Annotation Layer:
+var AnnotationLayer = DataLayer.extend({
+
+	initialize: function() {
+		// This overrides any inherited initialize methods.
+	},
+
+	render: function() {
+
+		this.initCanvas()		// Create the canvas layer
+			.initData()			// Initialize the data
+			.initAxes()			// Create the axes layer
+			.bindData()			// Bind the data and initialize the paths layer
+			.plot()				// Plot the data
+			.annotate(); 		// Bind the annotations to the chart
+			
+	},
+
+	annotate: function() {
+
+		// Initialize the annotation layer:
+		this.layer.annotation = {};
+
+		// Parse the relevant settings:
+		var title = this.model.get('title'),
+			caption = this.model.get('caption'),
+			legend = this.model.get('legend'),
+			dataCursor = this.model.get('dataCursor');
+
+		if ( title ) {
+			this.title();
+		}; // end IF title
+
+		if ( caption ) {
+			this.caption();
+		}; // end IF caption
+
+		if ( legend.length ) {
+			// Check!:
+			if (legend.length != this.data.length) {
+				// Gracefully not output anything and issue a warning to the console:
+				console.log('WARNING:number of legend labels does not equal the number of data series. Legend not generated.');
+			}else  {
+				this.legend();
+			}; // end IF/ELSE
+		}; // end IF legend
+
+		if ( dataCursor ) {
+			this.initCursor();
+		}; // end IF dataCursor
+
+		return this;
+
+	},
+
+	title: function() {
+		this.layer.annotation.title = this.layer.chart.append('svg:text')
+			.attr('x', this.model.get('_graph').width / 2)
+			.attr('y', 2 )
+			.attr('text-anchor', 'middle')
+			.attr('class', 'title')
+			.text( this.model.get('title') );
+
+		return this;
+	},
+
+	caption: function() {
+		// For the caption, we append a <figcaption> to the <figure> container:
+		this.layer.annotation.caption = this.layer.container.append('figcaption')
+			.attr('class', 'caption')
+			.style('width',  this.model.get('_graph').width + 'px' )
+			.style('padding-left', this.model.get('margin').left + 'px' )
+			.html( this.model.get('caption') );
+
+		return this;
+	},
+
+	legend: function() {
+		// Initialize the legend layer:
+		this.layer.annotation.legend = [];
+
+		// For each data series, get the last data value and append a text object to that value:
+		var data = [],
+			legend = this.model.get('legend'),
+			xScale = this.model.get('_xScale'),
+			yScale = this.model.get('_yScale');
+
+		_.each(this.data, function(d,i) {
+			data.push( _.last( d.get('dataSeries') ) );
+		});			
+
+		this.layer.annotation.legend = this.layer.chart.selectAll('.legend')
+			.data( data )
+		  .enter().append('svg:text')
+			.attr('transform', function(d) { return "translate(" + xScale(d.x) + "," + yScale(d.y) + ")"; })
+			.attr('x', 3 )
+			.attr('dy', ".35em" )
+			.attr('class', 'legend')
+			.text( function(d,i) { return legend[i]; } );		
+
+		return this;
+	},
+
+	updateLegend: function() {
+		// Get the current xDomain and x- and y-scales:
+		var xDomain = this.model.get('_xScale').domain(),
+			xScale = this.model.get('_xScale'),
+			yScale = this.model.get('_yScale');
+
+		// Define the x-bisector: (where, for the id returned, data[id-1] < val < data[id])
+		var xBisect = d3.bisector( function(d) { return d.x; }).left;
+
+		var data = [],
+			id;
+		_.each(this.data, function(d,i) {
+			id = xBisect( d.get('dataSeries'), xDomain[1] );
+			if (id >= d.get('dataSeries').length) {
+				id = id - 1; // edge case
+			}; // end IF
+			data.push( {
+				'x': xDomain[1],
+				'y': d.get('dataSeries')[id].y
+			});
+		});
+
+		this.layer.annotation.legend
+			.data( data )
+			.transition()
+				.duration(100)
+				.ease('linear')
+				.attr('transform', function(d) { 
+					return 'translate(' + xScale(d.x) + ',' + yScale(d.y) + ')'; });
+
+		return this;
+
+	},
+
+	initCursor: function() {
+
+		// Get the base data layer:
+		var layer = this.layer.data.base;
+
+		// Add the tooltip to our annotation layer:
+		var tooltip = this.layer.container.append('div')
+			.attr('class', 'data-cursor tooltip')
+			.style('opacity', 0);
+
+		// Namespace the data cursor callback:
+		this.layer.data.paths.on('mouseover.cursor', createCursor )
+			.on('mouseout.cursor', destroyCursor );
+
+		// Get the x- and y-scales:
+		var xScale = this.model.get('_xScale'),
+			yScale = this.model.get('_yScale');
+
+		// Define the x-bisector: (where, for the id returned, data[id-1] < val < data[id])
+		var xBisect = d3.bisector( function(d) { return d.x; }).left;
+
+		// Initialize the mouse coordinates:
+		var coords;
+
+		return this;
+
+		function createCursor() {
+
+			// Get the current mouse coordinates:
+			coords = d3.mouse( this );
+
+			// Map those pixel coordinates to the data space:
+			var xData = xScale.invert( coords[0] ),
+				yData = yScale.invert( coords[1] );
+
+			// Determine the closest data indices:
+			var data = d3.select(this).data()[0].get('dataSeries'),
+				xPos = xBisect(data, xData);
+
+			if ( (xData-data[xPos-1].x) < (data[xPos].x-xData) ) {
+				// The closet x-value is the previous data point:
+				xPos = xPos - 1;
+			}; // end IF			
+
+			layer.selectAll('.data-cursor')
+				.data( [ data[xPos] ] )
+			  .enter().append('svg:circle')
+			  	.attr('class', 'data-cursor')
+			  	.attr('cx', function(d) { return xScale(d.x); } )
+			  	.attr('cy', function(d) { return yScale(d.y); } )
+			  	.attr('fill', 'black')
+			  	.attr('r', 0)
+			  	.transition()
+			  		.duration(500)
+			  		.ease('linear')
+			  		.attr('r', 5)
+			  		.call( showTooltip, data[xPos] );
+
+
+		}; // end FUNCTION createCursor()
+
+		function destroyCursor() {
+			d3.selectAll('.data-cursor')
+				.transition()
+					.call( hideTooltip )
+					.duration(200)
+					.ease('linear')
+					.attr('r', 0)
+					.remove();
+		}; // end FUNCTION destroyCursor()
+
+		function showTooltip( transition, d ) {
+			var str = 'x: ' + d.x + '<br>y: ' + d.y;
+			tooltip.transition()
+				.duration(200)
+				.style('opacity', 0.9);
+			tooltip.html( str )
+				.style('left', d3.event.pageX + 8 + 'px')
+				.style('top', d3.event.pageY + 'px');
+		}; // end FUNCTION showTooltip()
+
+		function hideTooltip( d ) {
+			tooltip.transition()
+				.duration(200)
+				.style('opacity', 0);
+		}; // end FUNCTION hideTooltip()
+
+	}
+
+}); // end AnnotationLayer
 
 
 
 // Listener Layer:
-var ListenerLayer = DataLayer.extend({
+var ListenerLayer = AnnotationLayer.extend({
 
-	bindListeners: function() {
+	render: function() {
 
-		// Bind data listeners:
-		this.model.on('change:xLabel change:yLabel', this.updateAxes, this);
-		this.model.on('change:xDomain change:yDomain', this.updateAxes, this);
-		this.model.on('change:xDomain change:yDomain', this.plot, this);
+		this.initCanvas()		// Create the canvas layer
+			.initData()			// Initialize the data
+			.initAxes()			// Create the axes layer
+			.bindData()			// Bind the data and initialize the paths layer
+			.plot()				// Plot the data
+			.annotate() 		// Bind the annotations to the chart
+			.listen(); 			// Bind listeners so that views update upon model changes
 
-		//this.collection.on('change:dataSeries', this.update, this);
-		//this.collection.on('add:dataSeries', this.update, this);
-		this.collection.on('remove:dataSeries', this.update, this);
-		//this.collection.on('reset', this.update, this);
+	},
+
+	listen: function() {
+
+		// Get listeners settings:
+		var settings = this.model.get('listeners');
+
+		if ( settings.chart ) {
+
+			// Bind chart data listeners:
+			this.model.on('change:xLabel change:yLabel', this.refreshAxes, this);
+			this.model.on('change:_xDomain change:_yDomain', this.updateAxes, this);
+			this.model.on('change:_xDomain change:_yDomain', this.redraw, this);
+			this.model.on('change:_xDomain change:_yDomain', this.updateLegend, this);
+
+		}; // end IF
+
+		if ( settings.data ) {
+
+			// Bind plot data listeners:
+
+			var updateFcn = this.model.get('_updateFcn');
+
+			//this.collection.on('add:dataSeries', this.update, this);
+			this.collection.on('change:dataSeries', updateFcn, this);
+			//this.collection.on('reset', this.update, this);
+
+		}; // end IF
 
 	}
-
 
 });
 
@@ -791,8 +1111,9 @@ var InteractionLayer = ListenerLayer.extend({
 			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
 			.plot()				// Plot the data
+			.annotate() 		// Bind the annotations to the chart
 			.bindInteration()	// Bind the interaction behavior
-			.bindListeners(); 	// Bind listeners so that views update upon model changes
+			.listen(); 			// Bind listeners so that views update upon model changes
 
 	},
 
@@ -804,14 +1125,14 @@ var InteractionLayer = ListenerLayer.extend({
 		this.mouseover().mouseout();
 
 		// Get the events:
-		var mouseover = this.model.get('mouseover'),
-			mouseout = this.model.get('mouseout');
+		var mouseover = this.model.get('_mouseover'),
+			mouseout = this.model.get('_mouseout');
 
 		// Set the hover events:
 		selection
 			.style('cursor', 'pointer')
-			.on('mouseover', mouseover )
-			.on('mouseout', mouseout );
+			.on('mouseover.hover', mouseover )
+			.on('mouseout.hover', mouseout );
 
 		// Determine if brush interaction is enabled:
 		if ( this.model.get('brush') ) {
@@ -837,7 +1158,7 @@ var InteractionLayer = ListenerLayer.extend({
 		};
 
 		// Update our chart model:
-		this.model.set('mouseover', mouseover);
+		this.model.set('_mouseover', mouseover);
 
 		return this;
 
@@ -853,7 +1174,7 @@ var InteractionLayer = ListenerLayer.extend({
 		};
 
 		// Update our chart model:
-		this.model.set('mouseout', mouseout);
+		this.model.set('_mouseout', mouseout);
 
 		return this;
 
@@ -865,18 +1186,10 @@ var InteractionLayer = ListenerLayer.extend({
 
 		// Get the brush properties:
 		var props = this.model.get('brushProps'),
-			width = this.model.get('graph').width; // this is a hack; need to allow for setting.
+			width = this.model.get('_graph').width; // this is a hack; need to allow for setting.
 
-		// Get the xScale and xAxis:
-		var xScale = this.model.get('xScale'),
-			xAxis = this.model.get('xAxis');
-
-		// Get the path generator for the main graph:
-		var line = this.model.get('line');
-
-		// Get the axis and paths layers for the main graph:
-		axisLayer = this.layer.axis.x;
-		pathLayer = this.layer.data.paths;
+		// Get the xScale:
+		var xScale = this.model.get('_xScale');
 
 		// Specify the brush scale:
 		var brushScale = d3.scale.linear()
@@ -897,23 +1210,22 @@ var InteractionLayer = ListenerLayer.extend({
 
 		// Update our chart model:
 		this.model.set( {
-			'brush': brush,
-			'brushScale': brushScale,
-			'brushAxis': brushAxis 
+			'_brush': brush,
+			'_brushScale': brushScale,
+			'_brushAxis': brushAxis 
 		} );
 
+		var that = this;
 		function onBrush() {
 			// Get the current brush extent:
 			var extent = brush.empty() ? brushScale.domain() : brush.extent();
 
-			// Update the xScale and xAxis:
+			// Update the xScale:
 			xScale.domain( extent );
-			axisLayer.call( xAxis );
+			
+			// Update our chart model: (this will trigger a listener callback)
+			that.model.set('_xDomain', extent);
 
-			// Redraw the chart to show only the specified extent:
-			pathLayer.attr('d', function(d,i) { 
-				return line( d.get('dataSeries') );
-			});
 		}; // end FUNCTION onBrush()
 
 		return this;
@@ -929,15 +1241,15 @@ var InteractionLayer = ListenerLayer.extend({
 		// Get the graph and brush specs:
 		var canvas = this.model.get('canvas'),
 			margin = this.model.get('margin'),
-			graph = this.model.get('graph'),
+			graph = this.model.get('_graph'),
 			props = this.model.get('brushProps');
 
 		// Expand the SVG canvas: (make room for the brush)
 		this.layer.base.attr('height', canvas.height + props.margin.top + props.height + props.margin.bottom);
 
 		// Get the brush generators:
-		var brush = this.model.get('brush'),
-			brushAxis = this.model.get('brushAxis');
+		var brush = this.model.get('_brush'),
+			brushAxis = this.model.get('_brushAxis');
 
 		// Create the brush container:
 		var fromTop = canvas.height + props.margin.top;
@@ -983,9 +1295,10 @@ var AnimationLayer = InteractionLayer.extend({
 			.bindData()						// Bind the data and initialize the paths layer
 			.bindAnimation( )				// Setup the selection for transitions
 			.plot()							// Plot the data
+			.annotate() 					// Bind the annotations to the chart
 			.bindInteraction()				// Bind the interaction behavior
 			.animate( )						// Run the animations
-			.bindListeners(); 				// Bind listeners so that views update upon model changes
+			.listen(); 						// Bind listeners so that views update upon model changes
 
 	},
 
@@ -1000,7 +1313,7 @@ var AnimationLayer = InteractionLayer.extend({
 				selection = this.layer.data.paths;
 
 				// Get the x scale and domain:
-				var xScale = this.model.get('xScale'),
+				var xScale = this.model.get('_xScale'),
 					xDomain = xScale.domain();
 
 				// Setup the transition:
@@ -1035,8 +1348,8 @@ var AnimationLayer = InteractionLayer.extend({
 
 		// Store the selection to be animated and its associated animation:
 		this.model.set({
-			"selection": selection,
-			"animationFcn": animationFcn
+			"_selection": selection,
+			"_animationFcn": animationFcn
 		});		
 
 		return this;
@@ -1058,17 +1371,17 @@ var AnimationLayer = InteractionLayer.extend({
 	animate: function( ) {
 
 		// Get the selection to be animated:
-		var selection = this.model.get('selection');
+		var selection = this.model.get('_selection');
 
 		// Get the scales:
-		var xScale = this.model.get('xScale'),
-			yScale = this.model.get('yScale');
+		var xScale = this.model.get('_xScale'),
+			yScale = this.model.get('_yScale');
 
 		var props = this.model.get('animationProps'),
 			duration = props.onEnter.duration,
 			easing = props.onEnter.easing;
 
-		var animate = this.model.get('animationFcn');
+		var animate = this.model.get('_animationFcn');
 		
 		selection.transition()
 			.duration( duration )
@@ -1090,7 +1403,7 @@ var AnimationLayer = InteractionLayer.extend({
 		}; // end IF/ELSE
 
 		// Update our chart model:
-		this.model.set('onEnter', onEnter);
+		this.model.set('_onEnter', onEnter);
 
 		return this;
 
@@ -1107,7 +1420,7 @@ var AnimationLayer = InteractionLayer.extend({
 		}; // end IF/ELSE
 
 		// Update our chart model:
-		this.model.set('onUpdate', onUpdate);
+		this.model.set('_onUpdate', onUpdate);
 
 		return this;
 
@@ -1116,6 +1429,8 @@ var AnimationLayer = InteractionLayer.extend({
 	onExit: function() {
 		
 		// TBD
+
+		return this;
 
 	}
 

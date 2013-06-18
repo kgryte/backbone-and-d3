@@ -13,7 +13,17 @@ body {
 	background-image: url('../img/tiny_grid.png');
 }
 
-svg {
+.mvcChart {
+ 	/*position: relative;*/
+ 	/*float: left;*/
+ 	display: block;
+ 	margin: 0 auto;
+ 	margin-top: 120px;
+ 	margin-bottom: 20px;
+ 	width: 840px;
+}
+
+.base {
  	font-family: 'Cabin', 'Ropa Sans', "Helvetica Neue", Helvetica, sans-serif;
  	font-size: 14px;
  	fill: #474747;
@@ -44,6 +54,13 @@ svg {
 }
 
 
+
+.figure-desc {
+	font-style: italic;
+}
+
+
+
 .brush .axis path{ 
 	stroke-opacity: 0;
 }
@@ -67,6 +84,22 @@ svg {
     visibility: visible !important;
 }
 
+
+
+.tooltip {   
+	position: absolute;           
+	width: auto;                  
+	height: 32px;                 
+	padding: 4px 10px 4px 10px;         
+	font-size: 14px;
+	font-family: 'Cabin', 'Ropa Sans', "Helvetica Neue", Helvetica, sans-serif;
+ 	text-align: left;
+ 	color: rgb(245,245,245);           
+	background-color: rgba(0,0,0,0.7);   
+	border: 0;      
+	border-radius: 8px;           
+	pointer-events: none;         
+}
 
 
 
