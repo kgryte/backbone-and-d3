@@ -26,7 +26,7 @@
 *		[12] Switch the order such that axes plotted on top of data (?)
 *		[13] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus). Add/remove methods for new dataseries.
 *		[14] Output error messages to a pop up dialog. Currently just logged to console.
-*		[15] 
+*		[15] Add updates for adding and removing time series from the plot
 *		[16] 
 *		[17] 
 *
@@ -591,13 +591,13 @@ App.Views.DataLayer = App.Views.ChartArea.extend({
 			.initData()
 			.initAxes() // TODO: need to switch the order. Draw the axes atop the data; order matters.
 			.bindData()
-			.plot();
+			.draw();
 			
 		return this;
 
 	},
 
-	plot: function() {
+	draw: function() {
 
 		// Create the path generator:
 		this.line();
@@ -937,7 +937,7 @@ App.Views.AnnotationLayer = App.Views.DataLayer.extend({
 			.initData()			// Initialize the data
 			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
-			.plot()				// Plot the data
+			.draw()				// Plot the data
 			.annotate(); 		// Bind the annotations to the chart
 			
 	},
@@ -1167,7 +1167,7 @@ App.Views.ListenerLayer = App.Views.AnnotationLayer.extend({
 			.initData()			// Initialize the data
 			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
-			.plot()				// Plot the data
+			.draw()				// Plot the data
 			.annotate() 		// Bind the annotations to the chart
 			.listen(); 			// Bind listeners so that views update upon model changes
 
@@ -1219,7 +1219,7 @@ App.Views.InteractionLayer = App.Views.ListenerLayer.extend({
 			.initData()			// Initialize the data
 			.initAxes()			// Create the axes layer
 			.bindData()			// Bind the data and initialize the paths layer
-			.plot()				// Plot the data
+			.draw()				// Plot the data
 			.annotate() 		// Bind the annotations to the chart
 			.bindInteration()	// Bind the interaction behavior
 			.listen(); 			// Bind listeners so that views update upon model changes
@@ -1403,7 +1403,7 @@ App.Views.AnimationLayer = App.Views.InteractionLayer.extend({
 			.initAxes()						// Create the axes layer
 			.bindData()						// Bind the data and initialize the paths layer
 			.bindAnimation( )				// Setup the selection for transitions
-			.plot()							// Plot the data
+			.draw()							// Plot the data
 			.annotate() 					// Bind the annotations to the chart
 			.bindInteraction()				// Bind the interaction behavior
 			.animate( )						// Run the animations
