@@ -20,7 +20,7 @@
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
 *		[7] Provide validation for internal methods / variables
 *		[8] Provide validation for animation and transition settings
-*		[9] 
+*		[9] Refactor validation code to be more compact
 *		[10] Ensure standard data representation
 *		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
 *		[12] Switch the order such that axes plotted on top of data (?)
@@ -258,205 +258,16 @@ var ChartModel = Backbone.Model.extend({
 
 	validate: function(attrs, options) {
 
-		var errors = {};
-		
 		// Check that we have supplied attributes:
 		if (!attrs) {
 			return;
 		}; // end IF
 
-		// Get the keys:
-		var keys = _.keys(attrs);
-
-		// Iterate over each key and perform the appropriate validation:
-		_.each(keys, validator);
+		var errors = Backbone.Validate( this, attrs );
 
 		if ( !_.isEmpty(errors) ) {
 			return errors;
-		}; // end IF
-
-		function validator(key) {
-
-			var prefix = 'ERROR:invalid input for "'+ key +'". ';
-
-			var val = attrs[key];
-			//console.log(val);
-			switch (key) {
-
-				case 'title': case 'caption': case 'xLabel': case 'yLabel': 
-					// Must be a string:
-					if ( !_.isString( val ) ) {
-						errors[key] = prefix + 'Must be a string.';
-					}; // end IF
-					break;
-
-				case 'xDomain': case 'yDomain':
-					// Must be an array:
-					if ( !_.isArray( val ) || !(val.length == 0 || val.length ==2) ) {
-						errors[key] = prefix + 'Must be either an empty array or an array of length 2.';
-						return;
-					}; // end IF
-					_.each(val, function( num ) {
-						if ( !_.isFinite( num ) && !(num === 'max' || num === 'min') ) {
-							errors[key] = prefix + 'Array elements must be finite numbers or special strings "min" or "max".';
-						}; // end IF
-					});
-					break;
-
-				case 'margin': case 'canvas':
-					// Must be an object:
-					if ( !_.isObject( val ) ) {
-						errors[key] = prefix + 'Must be an object.';
-						return;
-					}; // end IF
-
-					var validKeys;
-					switch (key) {
-						case 'margin':
-							validKeys = ['top', 'bottom', 'left', 'right'];
-							break;
-						case 'canvas':
-							validKeys = ['height', 'width'];
-							break;
-					};
-
-					_.each(validKeys, function(validKey) {
-						if ( !_.has( val, validKey ) ) {
-							errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
-							return;
-						};
-						if ( !_.isFinite( val[validKey] ) ) {
-							errors[key] = prefix + validKey + ' must be a finite number.';
-						}; // end IF
-					});
-					break;
-
-				case 'legend':
-					// Must be an array:
-					if ( !_.isArray( val ) ) {
-						errors[key] = prefix + 'Must be an array.';
-					}; // end IF
-
-					_.each( val, function( str ) {
-						if ( !_.isString( str ) ) {
-							errors[key] = prefix + 'Must be an array of strings.';
-						}; // end IF
-					}); 
-					break;
-
-				case 'colors':
-					// Must be either an array or a special string:
-					if ( !_.isArray( val ) && val != 'auto' ) {
-						errors[key] = prefix + 'Must be an array of strings or "auto".';
-					}; // end IF
-
-					_.each( val, function( str ) {
-						if ( !_.isString( str ) ) {
-							errors[key] = prefix + 'Each array element must be a string corresponding to an externally defined CSS class.';
-						}; // end IF
-					});
-					break;
-
-				case 'brush': case 'dataCursor':
-					// Must be boolean:
-					if ( !_.isBoolean( val ) ) {
-						errors[key] = prefix + 'Must be a boolean.';
-					}; // end IF
-					break;
-
-				case 'brushProps':
-					// Must be an object:
-					if ( !_.isObject( val ) ) {
-						errors[key] = prefix + 'Must be an object.';
-						return;
-					}; // end IF
-
-					var validKeys = ['width', 'height', 'margin'];
-
-					_.each(validKeys, function(validKey) {
-						if ( !_.has( val, validKey ) ) {
-							errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
-							return;
-						};
-
-						switch (validKey) {
-							case 'height': case 'width':
-								if ( !_.isFinite( val[validKey] ) ) {
-									errors[key] = prefix + validKey + ' must be a finite number.';
-								}; // end IF
-								break;
-							case 'margin':
-								// Must be an object:
-								if ( !_.isObject( val[validKey] ) ) {
-									errors[key][validKey] = prefix + 'Must be an object.';
-									return;
-								}; // end IF
-
-								var innerValidKeys = ['top', 'bottom', 'left', 'right'];
-								
-								_.each(innerValidKeys, function(innerValidKey) {
-									if ( !_.has( val[validKey], innerValidKey ) ) {
-										errors[key][validKey] = prefix + 'Object must have one of the following keys: ' + innerValidKeys;
-										return;
-									};
-									if ( !_.isFinite( val[validKey][innerValidKey] ) ) {
-										errors[key][validKey] = prefix + innerValidKey + ' must be a finite number.';
-									}; // end IF
-								});
-								break;
-						}; // end SWITCH
-						
-					});
-					break;
-
-				case 'interpolation': case 'animation': case 'mode':
-					// Must be a string:
-					if ( !_.isString( val ) ) {
-						errors[key] = prefix + 'Must be a string.';
-					}; // end IF
-
-					var validVals;
-					switch (key) {
-						case 'interpolation':
-							validVals = ['linear', 'linear-closed', 'step', 'step-before', 'step-after', 'basis', 'basis-open', 'basis-closed', 'bundle', 'cardinal', 'cardinal-open', 'cardinal-closed', 'monotone'];
-							break;
-						case 'animation':
-							validVals = ['enterLeft', 'arise'];
-							break;
-						case 'mode':
-							validVals = ['window', 'add', 'dynamic'];
-							break;
-					}; // end SWITCH (key)
-
-					var index = validVals.indexOf( val );
-
-					if (index == -1) {
-						// Value not found:
-						errors[key] = prefix + 'Assigned value must be one of the following options: ' + validVals;
-					}; // end IF
-
-					break;
-
-				case 'listeners':
-					// Must be an object:
-					if ( !_.isObject( val ) ) {
-						errors[key] = prefix + 'Must be an object.';
-						return;
-					}; // end IF
-
-					var validKeys = ['chart', 'data'];
-
-					_.each(validKeys, function(validKey) {
-						if ( !_.isBoolean( val[validKey] ) ) {
-							errors[key] = prefix + validKey + ' must be a boolean.';
-						}; // end IF
-					});
-					break;
-				
-
-			}; // end SWITCH
-
-		}; // end FUNCTION validator(key)
+		}; // end IF		
 
 	}
 
@@ -1735,3 +1546,199 @@ var AnimationLayer = InteractionLayer.extend({
 
 
 
+Backbone.Validate = function( model, attrs ) {
+
+	var errors = {};
+		
+	// Get the keys:
+	var keys = _.keys(attrs);
+
+	// Iterate over each key and perform the appropriate validation:
+	_.each(keys, validator);
+
+	return errors;
+
+	function validator(key) {
+
+		var prefix = 'ERROR:invalid input for "'+ key +'". ';
+
+		var val = attrs[key];
+		//console.log(val);
+		switch (key) {
+
+			case 'title': case 'caption': case 'xLabel': case 'yLabel': 
+				// Must be a string:
+				if ( !_.isString( val ) ) {
+					errors[key] = prefix + 'Must be a string.';
+				}; // end IF
+				break;
+
+			case 'xDomain': case 'yDomain':
+				// Must be an array:
+				if ( !_.isArray( val ) || !(val.length == 0 || val.length ==2) ) {
+					errors[key] = prefix + 'Must be either an empty array or an array of length 2.';
+					return;
+				}; // end IF
+				_.each(val, function( num ) {
+					if ( !_.isFinite( num ) && !(num === 'max' || num === 'min') ) {
+						errors[key] = prefix + 'Array elements must be finite numbers or special strings "min" or "max".';
+					}; // end IF
+				});
+				break;
+
+			case 'margin': case 'canvas':
+				// Must be an object:
+				if ( !_.isObject( val ) ) {
+					errors[key] = prefix + 'Must be an object.';
+					return;
+				}; // end IF
+
+				var validKeys;
+				switch (key) {
+					case 'margin':
+						validKeys = ['top', 'bottom', 'left', 'right'];
+						break;
+					case 'canvas':
+						validKeys = ['height', 'width'];
+						break;
+				};
+
+				_.each(validKeys, function(validKey) {
+					if ( !_.has( val, validKey ) ) {
+						errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
+						return;
+					};
+					if ( !_.isFinite( val[validKey] ) ) {
+						errors[key] = prefix + validKey + ' must be a finite number.';
+					}; // end IF
+				});
+				break;
+
+			case 'legend':
+				// Must be an array:
+				if ( !_.isArray( val ) ) {
+					errors[key] = prefix + 'Must be an array.';
+				}; // end IF
+
+				_.each( val, function( str ) {
+					if ( !_.isString( str ) ) {
+						errors[key] = prefix + 'Must be an array of strings.';
+					}; // end IF
+				}); 
+				break;
+
+			case 'colors':
+				// Must be either an array or a special string:
+				if ( !_.isArray( val ) && val != 'auto' ) {
+					errors[key] = prefix + 'Must be an array of strings or "auto".';
+				}; // end IF
+
+				_.each( val, function( str ) {
+					if ( !_.isString( str ) ) {
+						errors[key] = prefix + 'Each array element must be a string corresponding to an externally defined CSS class.';
+					}; // end IF
+				});
+				break;
+
+			case 'brush': case 'dataCursor':
+				// Must be boolean:
+				if ( !_.isBoolean( val ) ) {
+					errors[key] = prefix + 'Must be a boolean.';
+				}; // end IF
+				break;
+
+			case 'brushProps':
+				// Must be an object:
+				if ( !_.isObject( val ) ) {
+					errors[key] = prefix + 'Must be an object.';
+					return;
+				}; // end IF
+
+				var validKeys = ['width', 'height', 'margin'];
+
+				_.each(validKeys, function(validKey) {
+					if ( !_.has( val, validKey ) ) {
+						errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
+						return;
+					};
+
+					switch (validKey) {
+						case 'height': case 'width':
+							if ( !_.isFinite( val[validKey] ) ) {
+								errors[key] = prefix + validKey + ' must be a finite number.';
+							}; // end IF
+							break;
+						case 'margin':
+							// Must be an object:
+							if ( !_.isObject( val[validKey] ) ) {
+								errors[key][validKey] = prefix + 'Must be an object.';
+								return;
+							}; // end IF
+
+							var innerValidKeys = ['top', 'bottom', 'left', 'right'];
+							
+							_.each(innerValidKeys, function(innerValidKey) {
+								if ( !_.has( val[validKey], innerValidKey ) ) {
+									errors[key][validKey] = prefix + 'Object must have one of the following keys: ' + innerValidKeys;
+									return;
+								};
+								if ( !_.isFinite( val[validKey][innerValidKey] ) ) {
+									errors[key][validKey] = prefix + innerValidKey + ' must be a finite number.';
+								}; // end IF
+							});
+							break;
+					}; // end SWITCH
+					
+				});
+				break;
+
+			case 'interpolation': case 'animation': case 'mode':
+				// Must be a string:
+				if ( !_.isString( val ) ) {
+					errors[key] = prefix + 'Must be a string.';
+				}; // end IF
+
+				var validVals;
+				switch (key) {
+					case 'interpolation':
+						validVals = ['linear', 'linear-closed', 'step', 'step-before', 'step-after', 'basis', 'basis-open', 'basis-closed', 'bundle', 'cardinal', 'cardinal-open', 'cardinal-closed', 'monotone'];
+						break;
+					case 'animation':
+						validVals = ['enterLeft', 'arise'];
+						break;
+					case 'mode':
+						validVals = ['window', 'add', 'dynamic'];
+						break;
+				}; // end SWITCH (key)
+
+				var index = validVals.indexOf( val );
+
+				if (index == -1) {
+					// Value not found:
+					errors[key] = prefix + 'Assigned value must be one of the following options: ' + validVals;
+				}; // end IF
+
+				break;
+
+			case 'listeners':
+				// Must be an object:
+				if ( !_.isObject( val ) ) {
+					errors[key] = prefix + 'Must be an object.';
+					return;
+				}; // end IF
+
+				var validKeys = ['chart', 'data'];
+
+				_.each(validKeys, function(validKey) {
+					if ( !_.isBoolean( val[validKey] ) ) {
+						errors[key] = prefix + validKey + ' must be a boolean.';
+					}; // end IF
+				});
+				break;
+			
+
+		}; // end SWITCH
+
+	}; // end FUNCTION validator(key)
+
+}; // end FUNCTION Backbone.validate()
