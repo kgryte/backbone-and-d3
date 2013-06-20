@@ -90,7 +90,7 @@ function singleChart() {
 		var _model = new Backbone.Model();
 
 		// Instantiate the Chart Model:
-		var _chart = new ChartModel( options.chart.canvas );
+		var _chart = new ChartModel();
 
 		// Add the Chart Model to our dynamic model:
 		_model.set('chart', _chart);
@@ -207,7 +207,7 @@ function multipleCharts( numCharts ) {
 		_models.push( new Backbone.Model() );
 
 		// Instantiate the Chart Model:
-		_chartModels.push( new ChartModel( options.chart.canvas ) );
+		_chartModels.push( new ChartModel() );
 
 		// Add the Chart Model to our dynamic model:
 		_models[i].set('chart', _chartModels[i]);

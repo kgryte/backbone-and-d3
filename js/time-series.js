@@ -16,10 +16,10 @@
 *		[2] Validate model data
 *		[3] Parse input options for view
 *		[4] Stipulate updates
-*		[5] Note that xScale and yScale are polymorphic in the data layer --> this makes sense due to data binding; data allows us to calculate domains; each layer should be independent of children inheritors.
+*		[5] Update defaults and validation so that either (a) backbone-nested can be used or (b) such that the config levels do not extend beyond 1, e.g., marginLeft: 10 versus margin: {left: 10, ...}
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
-*		[7] 
-*		[8]  
+*		[7] Provide validation for internal methods / variables
+*		[8] Provide validation for animation and transition settings
 *		[9] 
 *		[10] Ensure standard data representation
 *		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
@@ -30,8 +30,16 @@
 *		[16] Replace underscore with lo-dash (?)
 *		[17] x and y accessors? Are they necessary? Could this allow for user's to define their own input data structure? e.g., array versus associative array?
 *
+*
+*
 *	BUGS:
 *		[1] On load, the animation transition is sometimes interrupted. This could be due to the transition() method being over-written. --> Yes! If a listener event is called, say, the user hovers/mousemoves over the plot, the transition is interrupted. 
+*
+*
+*
+*	NOTES:
+*		[1] Note that, on initialization and set, the full object must be specified for setting an attribute; e.g., margin: {top: , bottom: , left: , right: }
+*		[2] Note that xScale and yScale are polymorphic in the data layer --> this makes sense due to data binding; data allows us to calculate domains; each layer should be independent of children inheritors.
 *
 *
 *
@@ -58,7 +66,10 @@ var DataPoint = Backbone.Model.extend({
 	},
 
 	// The basic type in a time series is a point:
-	type: "point"
+	type: "point",
+
+	// 
+	url: ''
 
 });
 
@@ -74,13 +85,74 @@ var DataSeries = Backbone.NestedModel.extend( {
 	},
 
 	// A collection of data points is of type data series:
-	type: "dataSeries"
+	type: "dataSeries",
+
+	//
+	url: ''
 
 });
 
 
 // Chart Model:
 var ChartModel = Backbone.Model.extend({
+
+	// Override the constructor:
+	constructor: function( attrs, options ) {
+
+		// Validate the attributes on instantiation:
+		var errors = this.validate( attrs );
+
+		// Check if we have errors:
+		if (errors) {
+			console.log(errors);
+			return {};
+		} else {
+			// Call the Backbone.Model constructor:
+			Backbone.Model.prototype.constructor.call(this, attrs);
+		}; // end IF/ELSE (errors)
+
+	},
+
+	// Override the set method:
+	set: function( key, val, options ) {
+
+		var attrs; 
+
+		if (key == null ) {
+			// Nothing to set.
+			return this;
+		}
+
+		if (typeof key === 'object') {
+			// Setting multiple attributes:
+			attrs = key;
+			options = val;
+		} else {
+			// Setting a key-value pair:
+			(attrs = {})[key] = val;
+		}; // end IF/ELSE
+
+		// Check if validation is turned off:
+		if ( options && options.hasOwnProperty('validate') && options['validate'] == false ) {
+			// Don't validate.
+		}else {
+			// Validate:
+			var errors = this.validate( attrs );
+			if (errors) {
+				// For each error, restore the default:
+				_.each( errors, function(value, key, errs) {
+					var orig = _.pick(this.defaults, key);
+					attrs[key] = orig[key];
+				}, this);
+				console.log(errors);
+				//return {};
+			}; // end IF
+		}; // end IF/ELSE
+
+		// Call the parent:
+		Backbone.Model.prototype.set.call(this, attrs, options);
+
+	},
 
 	// Set the default chart parameters:
 	defaults: {
@@ -179,6 +251,213 @@ var ChartModel = Backbone.Model.extend({
 		// Data cursor:
 		dataCursor: false
 
+	},
+
+	//
+	url: '',
+
+	validate: function(attrs, options) {
+
+		var errors = {};
+		
+		// Check that we have supplied attributes:
+		if (!attrs) {
+			return;
+		}; // end IF
+
+		// Get the keys:
+		var keys = _.keys(attrs);
+
+		// Iterate over each key and perform the appropriate validation:
+		_.each(keys, validator);
+
+		if ( !_.isEmpty(errors) ) {
+			return errors;
+		}; // end IF
+
+		function validator(key) {
+
+			var prefix = 'ERROR:invalid input for "'+ key +'". ';
+
+			var val = attrs[key];
+			//console.log(val);
+			switch (key) {
+
+				case 'title': case 'caption': case 'xLabel': case 'yLabel': 
+					// Must be a string:
+					if ( !_.isString( val ) ) {
+						errors[key] = prefix + 'Must be a string.';
+					}; // end IF
+					break;
+
+				case 'xDomain': case 'yDomain':
+					// Must be an array:
+					if ( !_.isArray( val ) || !(val.length == 0 || val.length ==2) ) {
+						errors[key] = prefix + 'Must be either an empty array or an array of length 2.';
+						return;
+					}; // end IF
+					_.each(val, function( num ) {
+						if ( !_.isFinite( num ) && !(num === 'max' || num === 'min') ) {
+							errors[key] = prefix + 'Array elements must be finite numbers or special strings "min" or "max".';
+						}; // end IF
+					});
+					break;
+
+				case 'margin': case 'canvas':
+					// Must be an object:
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Must be an object.';
+						return;
+					}; // end IF
+
+					var validKeys;
+					switch (key) {
+						case 'margin':
+							validKeys = ['top', 'bottom', 'left', 'right'];
+							break;
+						case 'canvas':
+							validKeys = ['height', 'width'];
+							break;
+					};
+
+					_.each(validKeys, function(validKey) {
+						if ( !_.has( val, validKey ) ) {
+							errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
+							return;
+						};
+						if ( !_.isFinite( val[validKey] ) ) {
+							errors[key] = prefix + validKey + ' must be a finite number.';
+						}; // end IF
+					});
+					break;
+
+				case 'legend':
+					// Must be an array:
+					if ( !_.isArray( val ) ) {
+						errors[key] = prefix + 'Must be an array.';
+					}; // end IF
+
+					_.each( val, function( str ) {
+						if ( !_.isString( str ) ) {
+							errors[key] = prefix + 'Must be an array of strings.';
+						}; // end IF
+					}); 
+					break;
+
+				case 'colors':
+					// Must be either an array or a special string:
+					if ( !_.isArray( val ) && val != 'auto' ) {
+						errors[key] = prefix + 'Must be an array of strings or "auto".';
+					}; // end IF
+
+					_.each( val, function( str ) {
+						if ( !_.isString( str ) ) {
+							errors[key] = prefix + 'Each array element must be a string corresponding to an externally defined CSS class.';
+						}; // end IF
+					});
+					break;
+
+				case 'brush': case 'dataCursor':
+					// Must be boolean:
+					if ( !_.isBoolean( val ) ) {
+						errors[key] = prefix + 'Must be a boolean.';
+					}; // end IF
+					break;
+
+				case 'brushProps':
+					// Must be an object:
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Must be an object.';
+						return;
+					}; // end IF
+
+					var validKeys = ['width', 'height', 'margin'];
+
+					_.each(validKeys, function(validKey) {
+						if ( !_.has( val, validKey ) ) {
+							errors[key] = prefix + 'Object must have one of the following keys: ' + validKeys;
+							return;
+						};
+
+						switch (validKey) {
+							case 'height': case 'width':
+								if ( !_.isFinite( val[validKey] ) ) {
+									errors[key] = prefix + validKey + ' must be a finite number.';
+								}; // end IF
+								break;
+							case 'margin':
+								// Must be an object:
+								if ( !_.isObject( val[validKey] ) ) {
+									errors[key][validKey] = prefix + 'Must be an object.';
+									return;
+								}; // end IF
+
+								var innerValidKeys = ['top', 'bottom', 'left', 'right'];
+								
+								_.each(innerValidKeys, function(innerValidKey) {
+									if ( !_.has( val[validKey], innerValidKey ) ) {
+										errors[key][validKey] = prefix + 'Object must have one of the following keys: ' + innerValidKeys;
+										return;
+									};
+									if ( !_.isFinite( val[validKey][innerValidKey] ) ) {
+										errors[key][validKey] = prefix + innerValidKey + ' must be a finite number.';
+									}; // end IF
+								});
+								break;
+						}; // end SWITCH
+						
+					});
+					break;
+
+				case 'interpolation': case 'animation': case 'mode':
+					// Must be a string:
+					if ( !_.isString( val ) ) {
+						errors[key] = prefix + 'Must be a string.';
+					}; // end IF
+
+					var validVals;
+					switch (key) {
+						case 'interpolation':
+							validVals = ['linear', 'linear-closed', 'step', 'step-before', 'step-after', 'basis', 'basis-open', 'basis-closed', 'bundle', 'cardinal', 'cardinal-open', 'cardinal-closed', 'monotone'];
+							break;
+						case 'animation':
+							validVals = ['enterLeft', 'arise'];
+							break;
+						case 'mode':
+							validVals = ['window', 'add', 'dynamic'];
+							break;
+					}; // end SWITCH (key)
+
+					var index = validVals.indexOf( val );
+
+					if (index == -1) {
+						// Value not found:
+						errors[key] = prefix + 'Assigned value must be one of the following options: ' + validVals;
+					}; // end IF
+
+					break;
+
+				case 'listeners':
+					// Must be an object:
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Must be an object.';
+						return;
+					}; // end IF
+
+					var validKeys = ['chart', 'data'];
+
+					_.each(validKeys, function(validKey) {
+						if ( !_.isBoolean( val[validKey] ) ) {
+							errors[key] = prefix + validKey + ' must be a boolean.';
+						}; // end IF
+					});
+					break;
+				
+
+			}; // end SWITCH
+
+		}; // end FUNCTION validator(key)
+
 	}
 
 });
@@ -194,7 +473,15 @@ var ChartModel = Backbone.Model.extend({
 var DataCollection = Backbone.Collection.extend({
 
 	// A data series will serve as the basic unit for our collection:
-	model: DataSeries
+	model: DataSeries,
+
+	// 
+	url: '',
+
+	// 
+	parse: function( response ) {
+		return response;
+	}
 
 });
 
@@ -1439,6 +1726,9 @@ var AnimationLayer = InteractionLayer.extend({
 	}
 
 });
+
+
+
 
 
 
