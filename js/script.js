@@ -55,6 +55,7 @@ function singleChart() {
 				'width': $(element).width()/2,
 				'height': 300
 			},
+			'yDomain': [0, 'max'],
 			'brush': true,
 			'interpolation': 'linear', //monotone',
 			'animation': 'arise',
@@ -188,6 +189,7 @@ function multipleCharts( numCharts ) {
 				'width': $(element).width()/2,
 				'height': 300
 			},
+			'yDomain': [0, 'max'],
 			'brush': true,
 			'interpolation': 'monotone',
 			'animation': 'arise',

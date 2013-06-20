@@ -113,7 +113,7 @@ var ChartModel = Backbone.Model.extend({
 
 		// Axis limits; keywords: 'min' and 'max' to auto-calculate the respective limit; leave empty to auto-calculate both limits
 		xDomain: [], // xLimits
-		yDomain: [0, 'max'], // yLimits
+		yDomain: [], // yLimits
 
 		// Line colors:
 		colors: 'auto', //['g','r','k','b'], // these correspond to CSS classes; can also set to 'auto' for calculated color generation
