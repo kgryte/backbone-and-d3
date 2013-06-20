@@ -90,7 +90,7 @@ function singleChart() {
 		var _model = new Backbone.Model();
 
 		// Instantiate the Chart Model:
-		var _chart = new ChartModel();
+		var _chart = new App.Models.Chart();
 
 		// Add the Chart Model to our dynamic model:
 		_model.set('chart', _chart);
@@ -105,7 +105,7 @@ function singleChart() {
 			var dataArray = json2array( json );
 
 			// Instantiate the Data Model:
-			var _data = new DataCollection( dataArray );
+			var _data = new App.Collections.Data( dataArray );
 
 			// Add the Data Model to our dynamic model:
 			_model.set('data', _data);
@@ -157,7 +157,7 @@ function singleChart() {
 		var element = options.el;
 
 		// Instantiate our view and render:
-		var chart = new AnimationLayer( {
+		var chart = new App.Views.AnimationLayer( {
 			el: element,
 			collection: model.get('data'),
 			model: model.get('chart')
@@ -207,7 +207,7 @@ function multipleCharts( numCharts ) {
 		_models.push( new Backbone.Model() );
 
 		// Instantiate the Chart Model:
-		_chartModels.push( new ChartModel() );
+		_chartModels.push( new App.Models.Chart() );
 
 		// Add the Chart Model to our dynamic model:
 		_models[i].set('chart', _chartModels[i]);
@@ -224,14 +224,14 @@ function multipleCharts( numCharts ) {
 			var dataArray = json2array( json );
 
 			// Instantiate the Data Model:
-			_dataModels.push( new DataCollection( dataArray ) );
+			_dataModels.push( new App.Collections.Data( dataArray ) );
 
 			// Add the Data Model to our dynamic model:
 			_models[counter].set('data', _dataModels[counter]);
 
 			// Instantiate our view and render:
 			charts.push( 
-				new AnimationLayer( {
+				new App.Views.AnimationLayer( {
 					el: options.el,
 					collection: _models[counter].get('data'),
 					model: _models[counter].get('chart')

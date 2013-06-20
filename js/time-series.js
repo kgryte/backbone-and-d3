@@ -13,8 +13,8 @@
 *
 *	TODO:
 *		[1] Decouple view 'data' from view itself. Create a chart model (?) --> a work in progress
-*		[2] Validate model data
-*		[3] Parse input options for view
+*		[2] x and y accessors? Are they necessary? Could this allow for user's to define their own input data structure? e.g., array versus associative array?
+*		[3] Replace underscore with lo-dash (?)
 *		[4] Stipulate updates
 *		[5] Update defaults and validation so that either (a) backbone-nested can be used or (b) such that the config levels do not extend beyond 1, e.g., marginLeft: 10 versus margin: {left: 10, ...}
 *		[6] Change axis implementation. Currently, external modification does not make sense, as axis is translated beyond user control
@@ -22,13 +22,13 @@
 *		[8] Provide validation for animation and transition settings
 *		[9] Refactor validation code to be more compact
 *		[10] Ensure standard data representation
-*		[11] Allow for ChartModel axis min and max setting (both axes) --> perform CHECKS! Use underscore.js
+*		[11] For real-time sliding window, need to establish a one data point buffer so that the left data edge matches the chart viewport. --> Two ways: 1) create an explicit buffer; 2) fiddle with the collection updates so that the listener fires only on add but not remove. Currently, this is how the buffer is maintained. The downside is that the last time series legend lags.
 *		[12] Switch the order such that axes plotted on top of data (?)
-*		[13] 
-*		[14] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus). Add/remove methods for new dataseries.
-*		[15] For real-time sliding window, need to establish a one data point buffer so that the left data edge matches the chart viewport. --> Two ways: 1) create an explicit buffer; 2) fiddle with the collection updates so that the listener fires only on add but not remove. Currently, this is how the buffer is maintained. The downside is that the last time series legend lags.
-*		[16] Replace underscore with lo-dash (?)
-*		[17] x and y accessors? Are they necessary? Could this allow for user's to define their own input data structure? e.g., array versus associative array?
+*		[13] Resolve the tension between the animation layer and, say, the data layer with regard to transitions. Question to answer: are transitions something fundamental to the graph (to its normal functioning)? If so, then transitions in the data layer; otherwise, something extra (gratuitus). Add/remove methods for new dataseries.
+*		[14] Output error messages to a pop up dialog. Currently just logged to console.
+*		[15] 
+*		[16] 
+*		[17] 
 *
 *
 *
@@ -49,13 +49,20 @@
 */
 
 
+// Namespace:
+var App = {
+	Models: {},
+	Collections: {},
+	Views: {}
+};
+
 
 //////////////////////
 // 		Models   	//
 //////////////////////
 
 // Individual data points:
-var DataPoint = Backbone.Model.extend({
+App.Models.DataPoint = Backbone.Model.extend({
 
 	// Set the default coordinates for an individual data point:
 	defaults: function() {
@@ -75,7 +82,7 @@ var DataPoint = Backbone.Model.extend({
 
 
 // Individual data series:
-var DataSeries = Backbone.NestedModel.extend( {
+App.Models.DataSeries = Backbone.NestedModel.extend( {
 
 	// Set the default format for an individual data series:
 	defaults: function() {
@@ -94,7 +101,7 @@ var DataSeries = Backbone.NestedModel.extend( {
 
 
 // Chart Model:
-var ChartModel = Backbone.Model.extend({
+App.Models.Chart = Backbone.Model.extend({
 
 	// Override the constructor:
 	constructor: function( attrs, options ) {
@@ -281,10 +288,10 @@ var ChartModel = Backbone.Model.extend({
 
 
 // A line chart is a set of data series, each a collection of data points:
-var DataCollection = Backbone.Collection.extend({
+App.Collections.Data = Backbone.Collection.extend({
 
 	// A data series will serve as the basic unit for our collection:
-	model: DataSeries,
+	model: App.Models.DataSeries,
 
 	// 
 	url: '',
@@ -305,7 +312,7 @@ var DataCollection = Backbone.Collection.extend({
 
 
 // Create the base chart layer (the canvas):
-var ChartBase = Backbone.View.extend({
+App.Views.ChartBase = Backbone.View.extend({
 
 	initialize: function( options ) {
 		// 
@@ -380,7 +387,7 @@ var ChartBase = Backbone.View.extend({
 
 
 // Create the Axes layer:
-var ChartArea = ChartBase.extend({
+App.Views.ChartArea = App.Views.ChartBase.extend({
 
 	initialize: function( options ) {
 		// This overrides any inherited initialize functions.
@@ -571,7 +578,7 @@ var ChartArea = ChartBase.extend({
 
 
 // Create the line chart layer:
-var DataLayer = ChartArea.extend({
+App.Views.DataLayer = App.Views.ChartArea.extend({
 
 	initialize: function( options ) {	
 		// This overrides any inherited initialize functions.
@@ -918,7 +925,7 @@ var DataLayer = ChartArea.extend({
 
 
 // Annotation Layer:
-var AnnotationLayer = DataLayer.extend({
+App.Views.AnnotationLayer = App.Views.DataLayer.extend({
 
 	initialize: function() {
 		// This overrides any inherited initialize methods.
@@ -1152,7 +1159,7 @@ var AnnotationLayer = DataLayer.extend({
 
 
 // Listener Layer:
-var ListenerLayer = AnnotationLayer.extend({
+App.Views.ListenerLayer = App.Views.AnnotationLayer.extend({
 
 	render: function() {
 
@@ -1200,7 +1207,7 @@ var ListenerLayer = AnnotationLayer.extend({
 
 
 // Interaction layer:
-var InteractionLayer = ListenerLayer.extend({
+App.Views.InteractionLayer = App.Views.ListenerLayer.extend({
 
 	initialize: function( options ) {
 		// This overrides any inherited initialize functions.
@@ -1383,7 +1390,7 @@ var InteractionLayer = ListenerLayer.extend({
 
 
 // Animation layer:
-var AnimationLayer = InteractionLayer.extend({
+App.Views.AnimationLayer = App.Views.InteractionLayer.extend({
 
 	initialize: function( options ) {
 		// This overrides any inherited initialize functions.
