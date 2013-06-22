@@ -93,7 +93,7 @@ test( "Tests: annotations model", function() {
 
 
 ////////////////
-// Model: Annotations
+// Model: Axes
 module( "model: axes" );
 
 // 
@@ -129,5 +129,34 @@ test( "Tests: axes model", function() {
 	deepEqual( axes.toJSON(), _test, "Model should not change: scale type is restricted to a set of strings." );
 
 
+
+});
+
+
+
+
+////////////////
+// Model: Listeners
+module( "model: listeners" );
+
+// 
+test( "Tests: listener model", function() {
+	expect(3);
+
+	var listeners = new Listeners();
+	var _test = listeners.toJSON();
+
+	// Ensure initialization works:
+	raises( function() {
+		var _listeners = new Listeners({'chart': 5});
+	}, "Model should throw an exception when improperly initialized.");
+
+	// Prevent users from setting arbitrary attributes:
+	listeners.set('abc', 4);
+	deepEqual( listeners.toJSON(), _test, "Model should not change: unallowed attribute." );
+
+	// Prevent users from setting improper types:
+	listeners.set('data', 'True');
+	deepEqual( listeners.toJSON(), _test, "Model should not change: unallowed type." );
 
 });

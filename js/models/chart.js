@@ -128,12 +128,6 @@ App.Models.Chart = Backbone.Model.extend({
 				'bottom': 20,
 				'left': 80
 			}
-		},
-
-		// Listeners:
-		listeners: {
-			'chart': true,
-			'data': true
 		}
 
 	},
