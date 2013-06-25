@@ -32,7 +32,7 @@ Chart.View = Backbone.View.extend({
 	initialize: function( options ) {
 
 		// Initialize models and collections:
-		this.initModels();
+		this._initModels();
 
 		// Initialize a layers object into which we will store all created layers:
 		this.layers = {};
@@ -41,15 +41,27 @@ Chart.View = Backbone.View.extend({
 		this.chart = {};
 
 		// Handle input options:
-		this.settings();
+		this._settings();
 
 		// Initialize the view instances:
-		this.initCanvas()
-			.initAxes();
+		this._initCanvas()
+			._initAxes();
 
 	}, // end METHOD initialize()
 
-	initModels: function() {
+	render: function() {
+
+		if (this.collections.data.length == 0) {
+			console.log('Have you forgotten to give me some data?');
+			return;
+		}; 	
+		
+		this._initData();
+		this.chart.data.render();
+
+	}, // end METHOD render()
+
+	_initModels: function() {
 		// Instantiate relevant models:
 		this.models = {}; 
 		this.models.canvas    = new Chart.Models.Canvas();
@@ -66,7 +78,7 @@ Chart.View = Backbone.View.extend({
 		
 	},
 
-	initCanvas: function() {
+	_initCanvas: function() {
 		// Canvas:
 		this.chart.base = new Chart.Layers.Base();
 
@@ -79,7 +91,7 @@ Chart.View = Backbone.View.extend({
 		return this;	
 	},
 
-	initAxes: function() {
+	_initAxes: function() {
 		// Axes:
 		this.chart.axes = new Chart.Layers.Axes();
 
@@ -92,33 +104,22 @@ Chart.View = Backbone.View.extend({
 		return this;
 	},
 
-	initData: function() {
+	_initData: function() {
 		// Data:
-		var params = {
-			data: this.collections.data,
-			type: 'line',
-			canvas: this.models.canvas,
-			axes: this.models.axes,
-			layers: this.layers				
-		};
 		this.chart.data = new Chart.Layers.Data();
+
+		this.chart.data
+			.data( this.collections.data )
+			.marks( this.models.marks )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.models.layers );
 
 		return this;
 
 	},
 
-	render: function() {
-
-		if (this.data.length == 0) {
-			console.log('Have you forgotten to give me some data?');
-			return;
-		}; 	
-		
-		this.chart.data.render();
-
-	}, // end METHOD render()
-
-	settings: function() {
+	_settings: function() {
 
 
 

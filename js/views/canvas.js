@@ -99,7 +99,7 @@ Chart.Layers.Base = Backbone.View.extend({
 	elem: function( element ) {
 		if (element) {
 			this.model.set('el', element);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('el');
@@ -108,7 +108,7 @@ Chart.Layers.Base = Backbone.View.extend({
 	canvas: function( model ) {
 		if (model) {
 			this.model.set('canvas', model);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('canvas');
@@ -117,13 +117,13 @@ Chart.Layers.Base = Backbone.View.extend({
 	layers: function( obj ) {
 		if (obj) {
 			this.model.set('layers', obj);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('layers');
 	},
 
-	initialized: function() {
+	_initialized: function() {
 		if ( this.model.get('el') && this.model.get('canvas') && this.model.get('layers') ) {
 			this.init = true;
 		}else {

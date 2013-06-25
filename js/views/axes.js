@@ -44,7 +44,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 			this.init = true;
 
 			// Set listeners:
-			this.listeners();
+			this._listeners();
 
 		};
 		
@@ -108,7 +108,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 	canvas: function( model ) {
 		if (model) {
 			this.model.set('canvas', model);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('canvas');
@@ -117,7 +117,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 	axes: function( model ) {
 		if (model) {
 			this.model.set('axes', model);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('axes');
@@ -126,22 +126,22 @@ Chart.Layers.Axes = Backbone.View.extend({
 	layers: function( obj ) {
 		if (obj) {
 			this.model.set('layers', obj);
-			this.initialized();
+			this._initialized();
 			return this;
 		}
 		return this.model.get('layers');
 	},
 
-	initialized: function() {
+	_initialized: function() {
 		if ( this.model.get('canvas') && this.model.get('axes') && this.model.get('layers') ) {
 			this.init = true;
-			this.listeners();
+			this._listeners();
 		}else {
 			this.init = false;
 		}; 
 	},
 
-	listeners: function() {
+	_listeners: function() {
 
 		// Listeners:
 		var axes = this.model.get('axes');
