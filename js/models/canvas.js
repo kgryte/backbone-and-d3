@@ -10,6 +10,7 @@
 *	DEPENDENCIES:
 *		[1] Backbone.js
 *		[2] Underscore.js
+*		[3] Chart.js - ancestor model class
 *
 *
 *	@author Kristofer Gryte. http://www.kgryte.com
@@ -20,7 +21,7 @@
 *
 */
 
-var Canvas = Backbone.Model.extend({
+Chart.Models.Canvas = Backbone.ChartModel.extend({
 
 	defaults: function() {
 
@@ -81,61 +82,7 @@ var Canvas = Backbone.Model.extend({
 			};
 			that.set('_graph', _graph, {validate: false});
 		}; // end FUNCTION graphSize()
-	},
-
-	// Override the constructor: initial validation
-	constructor: function( attrs, options ) {
-		var results = this.validate( attrs );
-
-		if ( results && !_.isEmpty(results.errors) ) throw results.errors;
-		if ( results && results.invalidKeys.length != 0 ) {
-			_.each( results.invalidKeys, function(key){ delete attrs[key]; });	
-		};
-
-		// Call the parent:
-		Backbone.Model.prototype.constructor.call(this, attrs, options);
-
-	},
-
-	// Override the set method: ensure validation
-	set: function( key, val, options ) {
-		var attrs; 
-
-		if (key == null ) {
-			// Nothing to set.
-			return this;
-		}; // end IF
-		if (typeof key === 'object') {
-			// Setting multiple attributes:
-			attrs = key;
-			options = val;
-		}else {
-			// Setting a key-value pair:
-			(attrs = {})[key] = val;
-		}; // end IF/ELSE
-		// Check if validation is turned off:
-		if ( options && options.hasOwnProperty('validate') && options['validate'] == false ) {
-			// Don't validate.
-		}else {
-			// Validate:
-			var results = this.validate( attrs );
-			if ( results && !_.isEmpty(results.errors) ) {
-				// For each error, restore the default:
-				var defaults = this.toJSON();
-				_.each( results.errors, function(value, key, errs) {
-					attrs[key] = defaults[key];
-				}, this);
-				console.log(results.errors);
-			}; // end IF
-			if ( results && results.invalidKeys.length != 0 ) {
-				_.each( results.invalidKeys, function(key){ delete attrs[key]; });	
-			}; // end IF
-		}; // end IF/ELSE
-
-		// Call the parent:
-		Backbone.Model.prototype.set.call(this, attrs, options);
-
-	}, // end METHOD set()
+	}, // end METHOD initialize()
 
 	validate: function( attrs, options ) {
 		// Check that we have supplied attributes:
@@ -161,11 +108,11 @@ var Canvas = Backbone.Model.extend({
 			invalidKeys: invalidKeys
 		};
 
+		// Provide a private validator method for this model:
 		function validator( key ) {
 
-			var prefix = 'ERROR:invalid input for "' + key + '". ';
-
-			var val = attrs[key];
+			var prefix = 'ERROR:invalid input for "' + key + '". ',
+				val = attrs[key];
 
 			switch (key) {
 
@@ -189,7 +136,9 @@ var Canvas = Backbone.Model.extend({
 			}; // end SWITCH
 
 		}; // end FUNCTION validator(key)
-		
+
 	} // end METHOD validate()
 
-});
+}); 
+
+	

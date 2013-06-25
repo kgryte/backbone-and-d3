@@ -101,53 +101,7 @@ App.Views.ChartBase = Backbone.View.extend({
 
 	},
 
-	initCanvas: function() {
-
-		// Initialize the layers object:
-		this.layer = {};
-
-		// Get the graph size:
-		this.model.set( '_graph', this.graphSize() );
-
-		// Create local variables to make the code less verbose:
-		var element = this.el,
-			canvas = this.model.get('canvas'),
-			margin = this.model.get('margin'),
-			graph = this.model.get('_graph');
-
-		// Create an HTML <figure> container to hold the chart:
-		this.layer.container = d3.select( element ).append('figure')
-			.attr('width', canvas.width)
-			.attr('class', 'mvcChart');
-		
-		// Create the canvas:
-		this.layer.base = this.layer.container.append("svg:svg")
-			.attr('width', canvas.width)
-			.attr('height', canvas.height)
-			.attr('class', 'base');
-
-		// Initialize the chart area:
-		this.layer.chart = this.layer.base.append("svg:g")
-			.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
-			.attr('class', 'chart');
-
-		// Append a path clipper, defining the data viewport:
-		var numCharts = d3.selectAll('.mvcChart')[0].length,
-			clipPathID = 'graphClipPath' + numCharts;
-
-		this.model.set( '_clipPath', '#' + clipPathID );
-
-		this.layer.chart.append("svg:defs")
-			.append("svg:clipPath")
-				.attr("id", clipPathID)
-				.append("svg:rect")
-					.attr("width", graph.width)
-					.attr("height", graph.height);
-
-		return this;
-
-	}	
-
+	
 });
 
 

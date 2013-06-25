@@ -1,153 +1,95 @@
 /**
+*	MODEL: Chart
+*
+*	NOTES:
+*		[1] This serves as the base model from which other chart models should extend. 
+*		[2] We override the 'constructor' and 'set' methods to perform validation before setting attributes and to prevent cluttering the model namespace with unrecognized attributes. 
+*		
+*		
+*
+*	HISTORY:
+*		2013-06-23: KGryte. Created.
+*
+*	DEPENDENCIES:
+*		[1] Backbone.js
+*		[2] Underscore.js
+*
+*	TODOS:
+*		[1] Create a general validate method and use per-class closures for model extensions with validation settings and permissions. See Backbone.Validation.
+*		[2] Following [1], need to ensure that validationError is set, invalid event is triggered, and the isvalid method work. Currently, these do not work. See Backbone source for implementation ideas.
 *
 *
+*	@author Kristofer Gryte. http://www.kgryte.com
 *
-*
-*
+*	Copyright (c) 2013. MIT License.
 *
 *
 *
 */
 
+var Chart = {
+	Models: {},
+	Layers: {},
+	Collections: {},
+	View: null
+};
 
+Backbone.ChartModel = Backbone.Model.extend({
 
-// Chart Model:
-App.Models.Chart = Backbone.Model.extend({
-
-	// Override the constructor:
+	// Override the constructor: initial validation
 	constructor: function( attrs, options ) {
+		var results = this.validate( attrs );
 
-		// Validate the attributes on instantiation:
-		var errors = this.validate( attrs );
+		if ( results && !_.isEmpty(results.errors) ) throw results.errors;
+		if ( results && results.invalidKeys.length != 0 ) {
+			_.each( results.invalidKeys, function(key){ delete attrs[key]; });	
+		};
 
-		// Check if we have errors:
-		if (errors) {
-			console.log(errors);
-			return {};
-		} else {
-			// Call the Backbone.Model constructor:
-			Backbone.Model.prototype.constructor.call(this, attrs);
-		}; // end IF/ELSE (errors)
+		// Call the parent:
+		Backbone.Model.prototype.constructor.call(this, attrs, options);
 
 	},
 
-	// Override the set method:
+	// Override the set method: ensure validation
 	set: function( key, val, options ) {
-
 		var attrs; 
 
 		if (key == null ) {
 			// Nothing to set.
 			return this;
-		}
-
+		}; // end IF
 		if (typeof key === 'object') {
 			// Setting multiple attributes:
 			attrs = key;
 			options = val;
-		} else {
+		}else {
 			// Setting a key-value pair:
 			(attrs = {})[key] = val;
 		}; // end IF/ELSE
-
 		// Check if validation is turned off:
 		if ( options && options.hasOwnProperty('validate') && options['validate'] == false ) {
 			// Don't validate.
 		}else {
 			// Validate:
-			var errors = this.validate( attrs );
-			if (errors) {
+			var results = this.validate( attrs );
+			if ( results && !_.isEmpty(results.errors) ) {
 				// For each error, restore the default:
-				_.each( errors, function(value, key, errs) {
-					var orig = _.pick(this.defaults, key);
-					attrs[key] = orig[key];
+				var defaults = this.toJSON();
+				_.each( results.errors, function(value, key, errs) {
+					if ( defaults.hasOwnProperty(key) ) {
+						attrs[key] = defaults[key];
+					};
 				}, this);
-				console.log(errors);
-				//return {};
+				console.log(results.errors);
+			}; // end IF
+			if ( results && results.invalidKeys.length != 0 ) {
+				_.each( results.invalidKeys, function(key){ delete attrs[key]; });	
 			}; // end IF
 		}; // end IF/ELSE
 
 		// Call the parent:
 		Backbone.Model.prototype.set.call(this, attrs, options);
 
-	},
-
-	// Set the default chart parameters:
-	defaults: {
-
-		// Line colors:
-		colors: 'auto', //['g','r','k','b'], // these correspond to CSS classes; can also set to 'auto' for calculated color generation
-
-		// Data smoothing:
-		interpolation: 'linear',
-
-		// Animation parameters:
-		animation: 'arise', // options: enterLeft, arise
-		animationProps: {
-			'onEnter': {
-				'duration': 1000,
-				'easing': 'linear'
-			},
-			'onUpdate': {
-				'duration': 1000,
-				'easing': 'linear'
-			},
-			'onExit': {
-				'duration': 1000,
-				'easing': 'linear'
-			}
-		}, 
-
-		// Transition parameters:
-		transition: {
-			'onEnter': {
-				'duration': 1000,
-				'easing': 'linear'
-			},
-			'onUpdate': {
-				'duration': 1000, // this parameter should be tuned to the velocity of incoming data
-				'easing': 'linear'
-			},
-			'onExit': {
-				'duration': 1000,
-				'easing': 'linear'
-			}
-		},
-
-		// Plot mode: (primarily targeted toward real-time data feeds)
-		mode: 'window', // options: window, add, dynamic, (others?)
-
-		// Brush settings:
-		brush: false,
-		brushProps: {
-			'height': 50,
-			'width': 960,
-			'margin': {
-				'top': 10,
-				'right': 20,
-				'bottom': 20,
-				'left': 80
-			}
-		}
-
-	},
-
-	//
-	url: '',
-
-	validate: function(attrs, options) {
-
-		// Check that we have supplied attributes:
-		if (!attrs) {
-			return;
-		}; // end IF
-
-		var errors = Backbone.Validate( this, attrs );
-
-		if ( !_.isEmpty(errors) ) {
-			return errors;
-		}; // end IF		
-
-	}
+	} // end METHOD set()
 
 });

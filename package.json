@@ -1,6 +1,7 @@
 {
 	"name": "d3.mvc",
 	"version": "0.0.1",
+	"private": true,
 	"description": "An MV* reusable chart framework built on top of D3.js",
 	"repository": {
 		"type": "git",

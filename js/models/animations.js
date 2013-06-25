@@ -1,19 +1,18 @@
 /**
-*	MODEL: Listeners
+*	MODEL: Animations
 *
 *	NOTES:
-*		
+*		- This needs to be thought through. Animations are more bespoke than other chart elements. Maybe: on initialization, on addition, on removal, on change.
 *
 *	HISTORY:
-*		2013-06-22: KGryte. Created
+*		2013-06-22: KGryte. Created.
 *
 *	DEPENDENCIES:
 *		[1] Backbone.js
 *		[2] Underscore.js
 *		[3] Chart.js - ancestor model class
 *
-*	TODO:
-*		[1] Rethink this. Custom listener layer?
+*		
 *
 *
 *	@author Kristofer Gryte. http://www.kgryte.com
@@ -24,13 +23,14 @@
 *
 */
 
-Chart.Models.Listeners = Backbone.ChartModel.extend({
+Chart.Models.Animations = Backbone.ChartModel.extend({
 
 	defaults: function() {
 
-		return {
-			chart: true,
-			data: true
+		return {			
+			'init.type': 'arise', // options: enterLeft, arise
+			'init.duration': 1000,
+			'init.easing': 'linear' // options: linear, bounce, etc.
 		};
 
 	},
@@ -71,10 +71,10 @@ Chart.Models.Listeners = Backbone.ChartModel.extend({
 
 			switch (key) {
 
-				case 'chart': case 'data':
-					if ( !_.isBoolean( val ) ) {
-						errors[key] = prefix + 'Assigned value must be a boolean: true or false.';
-					}; 
+				case {key}:
+					if ( {condition} ) {
+						errors[key] = prefix + '{message}';
+					};
 					break;
 
 				default:
