@@ -37,6 +37,12 @@ Chart.Layers.Base = Backbone.View.extend({
 
 			this.model.set( {el: options.el, canvas: options.canvas, layers: options.layers	} );
 
+			// Set listeners:
+			if (options.events) {
+				this.events = options.events;
+				this._listeners();
+			};
+
 			// Reset the options attribute:
 			options = {};
 
@@ -123,12 +129,28 @@ Chart.Layers.Base = Backbone.View.extend({
 		return this.model.get('layers');
 	},
 
+	events: function( obj ) {
+		if (obj) {
+			this.events = obj;
+			this._initialized();
+			return this;
+		}
+		return;
+	},
+
 	_initialized: function() {
 		if ( this.model.get('el') && this.model.get('canvas') && this.model.get('layers') ) {
 			this.init = true;
+			if (this.events) { 
+				this._listeners(); 
+			};
 		}else {
 			this.init = false;
 		}; 
+	},
+
+	_listeners: function() {
+		//
 	}
 
 });

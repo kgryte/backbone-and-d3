@@ -31,7 +31,10 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 			height: 500,// px
 			
 			// As in CSS: [ Top, Right, Bottom, Left]
-			margin: [20, 80, 50, 80]  // px
+			margin: [20, 80, 50, 80],  // px
+
+			// Event dispatcher:
+			events: null
 		};
 
 	},
@@ -44,44 +47,14 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 		this.set('marginBottom', margin[2]);
 		this.set('marginLeft'  , margin[3]);	
 
-		// Bind a listener to ensure consistency:
-		this.on("change:margin change:marginTop change:marginRight change:marginBottom change:marginLeft", setMargin, this);
-
 		// Calculate the graph size:
-		var that = this;
-		graphSize();
+		this._graphSize();
 
-		// Bind a listener to recalculate graph size upon change:
-		this.on("change:height change:width change:margin", graphSize, this);
-
-		function setMargin() {
-			if ( this.hasChanged("margin") ) {
-				var margin = this.get('margin');
-				// Set convenience variables:
-				this.set('marginTop'   , margin[0]);
-				this.set('marginRight' , margin[1]);
-				this.set('marginBottom', margin[2]);
-				this.set('marginLeft'  , margin[3]);	
-			}else {
-				this.set('margin', [
-					this.get('marginTop'),
-					this.get('marginRight'),
-					this.get('marginBottom'),
-					this.get('marginLeft')
-				]);
-			}; // end IF/ELSE				
-		}; // end FUNCTION setMargin()
-
-		function graphSize() {
-			var height = that.get('height'),
-				width = that.get('width');
-				margin = that.get('margin');
-			var _graph = {
-				'width': width - margin[1] - margin[3],
-				'height': height - margin[0] - margin[2]
-			};
-			that.set('_graph', _graph, {validate: false});
-		}; // end FUNCTION graphSize()
+		// Publish to the event dispatcher:
+		if ( this.get('events') ) {
+			this._listeners();
+		}; // end IF (dispatcher)
+		
 	}, // end METHOD initialize()
 
 	validate: function( attrs, options ) {
@@ -128,6 +101,16 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 					}
 					break;
 
+				case 'events':
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Assigned value must be an object.';
+					}else {
+						if ( !val.hasOwnProperty('trigger') || !_.isFunction( val.trigger) ) {
+							errors[key] + prefix + 'Assigned object must have a trigger method.';
+						};
+					};
+					break;
+
 				default:
 					console.log('WARNING:unrecognized attribute: ' + key );
 					invalidKeys.push(key);
@@ -137,7 +120,66 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 
 		}; // end FUNCTION validator(key)
 
-	} // end METHOD validate()
+	}, // end METHOD validate()
+
+	_listeners: function() {
+		var events = this.get('events');
+
+		// Bind a listener to ensure consistency:
+		this.on("change:margin change:marginTop change:marginRight change:marginBottom change:marginLeft", margin, this);
+		
+		// Bind a listener to recalculate graph size upon change:
+		this.on("change:height", height, this);
+		this.on("change:width", width, this);
+
+		function margin() {
+			this._setMargin()
+				._graphSize();
+			events.trigger('canvas:margin:change');
+		};
+
+		function height() {
+			this._graphSize();
+			events.trigger('canvas:height:change');
+		};
+
+		function width() {
+			this._graphSize();
+			events.trigger('canvas:width:change');
+		};
+
+	},
+
+	_setMargin: function() {
+		if ( this.hasChanged("margin") ) {
+			var margin = this.get('margin');
+			// Set convenience variables:
+			this.set('marginTop'   , margin[0]);
+			this.set('marginRight' , margin[1]);
+			this.set('marginBottom', margin[2]);
+			this.set('marginLeft'  , margin[3]);	
+		}else {
+			this.set('margin', [
+				this.get('marginTop'),
+				this.get('marginRight'),
+				this.get('marginBottom'),
+				this.get('marginLeft')
+			]);
+		}; // end IF/ELSE
+		return this;				
+	}, // end FUNCTION setMargin()
+
+	_graphSize: function() {
+		var height = this.get('height'),
+			width = this.get('width');
+			margin = this.get('margin');
+		var _graph = {
+			'width': width - margin[1] - margin[3],
+			'height': height - margin[0] - margin[2]
+		};
+		this.set('_graph', _graph, {validate: false});
+		return this;
+	} // end FUNCTION graphSize()
 
 }); 
 

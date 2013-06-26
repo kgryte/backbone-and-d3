@@ -31,6 +31,9 @@ Chart.View = Backbone.View.extend({
 
 	initialize: function( options ) {
 
+		// Initialize an event dispatcher:
+		this.events = _.clone(Backbone.Events);
+
 		// Initialize models and collections:
 		this._initModels();
 
@@ -41,7 +44,7 @@ Chart.View = Backbone.View.extend({
 		this.chart = {};
 
 		// Handle input options:
-		this._settings();
+		this._settings( options );
 
 		// Initialize the view instances:
 		this._initCanvas()
@@ -59,20 +62,22 @@ Chart.View = Backbone.View.extend({
 		this._initData();
 		this.chart.data.render();
 
+		return this;
+
 	}, // end METHOD render()
 
 	_initModels: function() {
 		// Instantiate relevant models:
 		this.models = {}; 
-		this.models.canvas    = new Chart.Models.Canvas();
-		this.models.axes 	  = new Chart.Models.Axes();
-		this.models.marks	  = new Chart.Models.Marks();
+		this.models.canvas    = new Chart.Models.Canvas({events: this.events});
+		this.models.axes 	  = new Chart.Models.Axes({events: this.events});
+		this.models.marks	  = new Chart.Models.Marks({events: this.events});
 		//this.models.annotations = new Chart.Models.Annotations();
 		//this.models.listeners = new Chart.Models.Listeners();
 		
 
 		this.collections = {};
-		this.collections.data = new Chart.Collections.Data();
+		this.collections.data = new Chart.Collections.Data([],{events: this.events});
 
 		return this;
 		
@@ -96,6 +101,7 @@ Chart.View = Backbone.View.extend({
 		this.chart.axes = new Chart.Layers.Axes();
 
 		this.chart.axes
+			.events( this.events )
 			.canvas( this.models.canvas )
 			.axes( this.models.axes )
 			.layers( this.layers )
@@ -110,18 +116,20 @@ Chart.View = Backbone.View.extend({
 
 		this.chart.data
 			.data( this.collections.data )
+			.events( this.events )
 			.marks( this.models.marks )
 			.canvas( this.models.canvas )
 			.axes( this.models.axes )
-			.layers( this.models.layers );
+			.layers( this.layers );
 
 		return this;
 
 	},
 
-	_settings: function() {
+	_settings: function( options ) {
 
-
+		// Ability to turn on and off annotations, interaction, animation, listeners (?)
+		// url for collection fetch
 
 		return this;
 

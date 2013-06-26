@@ -105,12 +105,12 @@ Chart.Models.Datum = Backbone.DataModel.extend({
 		};
 	}, // end METHOD defaults()
 
-	initialize: function() {
+	initialize: function( attrs, options ) {
 
-		// Bind listeners:
-		this.on('change', function(model) {
-			//console.log('change ', model);
-		});
+		if (options && options.hasOwnProperty('events')) {
+			this.events = options.events;
+			this._listeners();
+		};
 
 	}, // end METHOD initialize()
 
@@ -138,7 +138,7 @@ Chart.Models.Datum = Backbone.DataModel.extend({
 			}; // end IF
 
 			// Get any extraneous keys:
-			invalidKeys = _.without(keys, 'x', 'y');
+			invalidKeys = _.without(keys, 'x', 'y'); //, 'z', 'x0', 'x1', 'x2', 'y0', 'y1', 'y2', 'z0', 'z1', 'z2'
 
 			// Check the length of invalid keys:
 			if (invalidKeys.length != 0) {				
@@ -152,7 +152,28 @@ Chart.Models.Datum = Backbone.DataModel.extend({
 			invalidKeys: invalidKeys
 		};
 
-	} // end METHOD validate()
+	}, // end METHOD validate()
+
+	_listeners: function() {
+
+		// Bind listeners:
+		this.on('change', change, this);
+		this.on('add', add, this);
+		this.on('remove', remove, this);
+
+		function change( model ) {
+			this.events.trigger('data:datum:change');
+		};
+
+		function add( model ) {
+			this.events.trigger('data:datum:add');
+		};
+
+		function remove( model ) {
+			this.events.trigger('data:datum:remove');
+		};
+
+	} // end METHOD _listeners()
 
 });
 
@@ -185,18 +206,12 @@ Chart.Models.DataSet = Backbone.RelationalModel.extend({
 		};
 	}, // end METHOD defaults()
 
-	initialize: function( options ) {
-		
-		// Bind listeners:
-		this.on('add:data', function(model, collection) {
-			//console.log('add ', model, ' in ', collection);
-		});
-		this.on('remove:data', function(model, collection) {
-			//console.log('remove ', model, ' in ', collection);
-		});
-		this.on('change:data', function(model, collection) {
-			//console.log('change ', model, ' in ', collection);
-		});
+	initialize: function( models, options ) {
+
+		if (options && options.hasOwnProperty('events')) {
+			this.events = options.events;
+			this._listeners();
+		};		
 
 	}, // end METHOD initialize()
 
@@ -212,7 +227,28 @@ Chart.Models.DataSet = Backbone.RelationalModel.extend({
 			console.log('All models passed validation.');
 		}; // end IF/ELSE (hasErrors)
 
-	} // end METHOD validate()
+	},// end METHOD validate()
+
+	_listeners: function() {
+
+		// Bind listeners:
+		this.on('add:data', add, this);
+		this.on('remove:data', remove, this);
+		this.on('change:data', change, this);
+
+		function add( model, collection ) {
+			this.events.trigger('data:dataset:add');
+		};
+
+		function remove( model, collection ) {
+			this.events.trigger('data:dataset:remove');
+		};
+
+		function change( model, collection ) {
+			this.events.trigger('data:dataset:change');
+		};
+
+	} // end METHOD _listeners()
 
 });
 
@@ -226,15 +262,12 @@ Chart.Collections.Data = Backbone.Collection.extend({
 	model: Chart.Models.DataSet,
 	mode: 'static', // options: static, dynamic, live
 
-	initialize: function() {
+	initialize: function( models, options ) {
 
-		// Bind listeners:
-		this.on('add', function(model) {
-			//console.log('add ', model);
-		});
-		this.on('remove', function(model) {
-			//console.log('remove ', model);
-		});
+		if (options && options.hasOwnProperty('events')) {
+			this.events = options.events;
+			this._listeners();
+		};
 
 	}, // end METHOD initialize()
 
@@ -250,7 +283,23 @@ Chart.Collections.Data = Backbone.Collection.extend({
 		return _.max( dataset.get('data').toJSON(), function(datum) {
 			return datum[ key ];
 		});
-	} // end METHOD max()
+	}, // end METHOD max()
+
+	_listeners: function() {
+
+		// Bind listeners:
+		this.on('add', add, this);
+		this.on('remove', remove, this);
+
+		function add( model ) {
+			this.events.trigger('data:collection:add');
+		};
+
+		function remove( model ) {
+			this.events.trigger('data:collection:remove');
+		};
+
+	} // end METHOD _listeners()
 
 });
 

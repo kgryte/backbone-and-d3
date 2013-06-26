@@ -31,20 +31,27 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 
 			// Datum encoding
 			symbols: ['circle'], 
-			size: 5,
+			size: 9,
 
 			// 'auto' or, e.g., ['g','r','k','b'] 
 			// the latter correspond to CSS classes; 'auto' for automatic color generation:
 			colors: 'auto',
 
 			// Data smoothing:
-			interpolation: 'linear'
+			interpolation: 'linear', 
+			
+			// Event dispatcher:
+			events: null
+
 		};
 
 	},
 
 	initialize: function( options ) {
-		//
+		// Publish to the event dispatcher:
+		if ( this.get('events') ) {
+			this._listeners();
+		}; // end IF (dispatcher)
 	}, // end METHOD initialize()
 
 	validate: function( attrs, options ) {
@@ -83,7 +90,7 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 					if ( !_.isString( val ) ) {
 						errors[key] = prefix + 'Assigned value must be a string.';
 					}else {
-						var validVals = ['line', 'area', 'scatter', 'steamgraph'];
+						var validVals = ['line', 'area', 'scatter', 'steamgraph', 'stackedArea'];
 						if (validVals.indexOf(val) < 0) {
 							errors[key] = prefix + 'Assigned value must be one of the following: ' + validVals;
 						}; 
@@ -133,6 +140,16 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 					};
 					break;
 
+				case 'events':
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Assigned value must be an object.';
+					}else {
+						if ( !val.hasOwnProperty('trigger') || !_.isFunction( val.trigger) ) {
+							errors[key] + prefix + 'Assigned object must have a trigger method.';
+						};
+					};
+					break;
+
 				default:
 					console.log('WARNING:unrecognized attribute: ' + key );
 					invalidKeys.push(key);
@@ -142,6 +159,38 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 
 		}; // end FUNCTION validator(key)
 
-	} // end METHOD validate()
+	}, // end METHOD validate()
+
+	_listeners: function() {
+		var events = this.get('events');
+
+		// Bind listeners:
+		this.on("change:type", type, this);
+		this.on("change:size", size, this);
+		this.on("change:colors", type, this);
+		this.on("change:interpolation", type, this);
+		this.on("change:symbols", type, this);
+
+		function type() {
+			events.trigger('marks:type:change');
+		};
+
+		function size() {
+			events.trigger('marks:size:change');
+		};
+
+		function colors() {
+			events.trigger('marks:colors:change');
+		};
+
+		function interpolation() {
+			events.trigger('marks:interpolation:change');
+		};
+
+		function symbols() {
+			events.trigger('marks:symbols:change');
+		};
+
+	} // end METHOD _listeners()
 
 });

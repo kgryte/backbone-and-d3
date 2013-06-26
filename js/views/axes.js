@@ -37,15 +37,18 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 			this.model.set( {canvas: options.canvas, axes: options.axes, layers: options.layers} );
 
+			// Set listeners:
+			if (options.events) {
+				this.events = options.events;
+				this._listeners();
+			};
+
 			// Reset the options attribute:
 			options = {};
 
 			// Set a flag:
 			this.init = true;
-
-			// Set listeners:
-			this._listeners();
-
+			
 		};
 		
 	},
@@ -132,10 +135,21 @@ Chart.Layers.Axes = Backbone.View.extend({
 		return this.model.get('layers');
 	},
 
+	events: function( obj ) {
+		if (obj) {
+			this.events = obj;
+			this._initialized();
+			return this;
+		}
+		return;
+	},
+
 	_initialized: function() {
 		if ( this.model.get('canvas') && this.model.get('axes') && this.model.get('layers') ) {
 			this.init = true;
-			this._listeners();
+			if (this.events) { 
+				this._listeners(); 
+			};
 		}else {
 			this.init = false;
 		}; 
@@ -143,12 +157,14 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 	_listeners: function() {
 
-		// Listeners:
-		var axes = this.model.get('axes');
-		axes.on('change:xLabel', xLabel, this);
-		axes.on('change:yLabel', yLabel, this);
-		axes.on('change:xDomain change:xType change:xScale', xAxis, this);
-		axes.on('change:yDomain change:yType change:yScale', yAxis, this);
+		// Subscribers:		
+		this.events.on('axes:xLabel:change', xLabel, this);
+		this.events.on('axes:yLabel:change', yLabel, this);
+
+		this.events.on('axes:xDomain:change axes:xType:change axes:xScale:change', xAxis, this);
+		this.events.on('axes:yDomain:change axes:yType:change axes:yScale:change', yAxis, this);
+
+		return this;
 
 		function xLabel() {
 			var layers = this.model.get('layers'),
