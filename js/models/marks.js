@@ -39,6 +39,9 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 
 			// Data smoothing:
 			interpolation: 'linear', 
+
+			// Interaction:
+			interactive: true,
 			
 			// Event dispatcher:
 			events: null
@@ -90,7 +93,7 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 					if ( !_.isString( val ) ) {
 						errors[key] = prefix + 'Assigned value must be a string.';
 					}else {
-						var validVals = ['line', 'area', 'scatter', 'steamgraph', 'stackedArea'];
+						var validVals = ['line', 'area', 'scatter', 'steamgraph', 'stackedArea', 'jitter', 'bubble'];
 						if (validVals.indexOf(val) < 0) {
 							errors[key] = prefix + 'Assigned value must be one of the following: ' + validVals;
 						}; 
@@ -140,6 +143,12 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 					};
 					break;
 
+				case 'interactive':
+					if ( !_.isBoolean( val ) ) {
+						errors[key] = prefix + 'Assigned value must be a boolean: true or false.';
+					}; 
+					break;
+
 				case 'events':
 					if ( !_.isObject( val ) ) {
 						errors[key] = prefix + 'Assigned value must be an object.';
@@ -167,9 +176,10 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 		// Bind listeners:
 		this.on("change:type", type, this);
 		this.on("change:size", size, this);
-		this.on("change:colors", type, this);
-		this.on("change:interpolation", type, this);
-		this.on("change:symbols", type, this);
+		this.on("change:colors", colors, this);
+		this.on("change:interpolation", interpolation, this);
+		this.on("change:symbols", symbols, this);
+		this.on("change:interactive", interactive, this);
 
 		function type() {
 			events.trigger('marks:type:change');
@@ -189,6 +199,10 @@ Chart.Models.Marks = Backbone.ChartModel.extend({
 
 		function symbols() {
 			events.trigger('marks:symbols:change');
+		};
+
+		function interactive() {
+			events.trigger('marks:interactive:change');
 		};
 
 	} // end METHOD _listeners()

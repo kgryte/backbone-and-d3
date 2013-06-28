@@ -62,6 +62,8 @@ Chart.View = Backbone.View.extend({
 		this._initData();
 		this.chart.data.render();
 
+		this._initAnnotations();
+
 		return this;
 
 	}, // end METHOD render()
@@ -72,8 +74,7 @@ Chart.View = Backbone.View.extend({
 		this.models.canvas    = new Chart.Models.Canvas({events: this.events});
 		this.models.axes 	  = new Chart.Models.Axes({events: this.events});
 		this.models.marks	  = new Chart.Models.Marks({events: this.events});
-		//this.models.annotations = new Chart.Models.Annotations();
-		//this.models.listeners = new Chart.Models.Listeners();
+		this.models.annotations = new Chart.Models.Annotations({events: this.events});
 		
 
 		this.collections = {};
@@ -89,6 +90,7 @@ Chart.View = Backbone.View.extend({
 
 		this.chart.base
 			.elem( this.el )
+			.events( this.events )
 			.canvas( this.models.canvas )
 			.layers( this.layers )
 			.render();	
@@ -105,6 +107,22 @@ Chart.View = Backbone.View.extend({
 			.canvas( this.models.canvas )
 			.axes( this.models.axes )
 			.layers( this.layers )
+			.render();
+
+		return this;
+	},
+
+	_initAnnotations: function() {
+		// Annotations:
+		this.chart.annotations = new Chart.Layers.Annotations();
+
+		this.chart.annotations
+			.events( this.events )
+			.data( this.collections.data )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.annotations( this.models.annotations )
 			.render();
 
 		return this;
@@ -237,6 +255,62 @@ Chart.View = Backbone.View.extend({
 			return this;
 		}
 		return this.models.axes.get('yType');
+	},
+
+	data: function( data ) {
+		if (data) {
+			this.collections.data.add( data );
+			return this;
+		};
+		return this.collections.data.toJSON();
+	},
+
+	title: function( title ) {
+		if (title) {
+			this.models.annotations.set('title', title);
+			return this;
+		};
+		return this.models.annotations.get('title');
+	},
+
+	caption: function( caption ) {
+		if (caption) {
+			this.models.annotations.set('caption', caption);
+			return this;
+		};
+		return this.models.annotations.get('caption');
+	},
+
+	legend: function( legend ) {
+		if (legend) {
+			this.models.annotations.set('legend', legend);
+			return this;
+		};
+		return this.models.annotations.get('legend');
+	},
+
+	dataCursor: function( boolean ) {
+		if ( _.isBoolean(boolean) ) {
+			this.models.annotations.set('dataCursor', boolean);
+			return this;
+		};
+		return this.models.annotations.get('dataCursor');
+	},
+
+	editable: function( boolean ) {
+		if ( _.isBoolean(boolean) ) {
+			this.models.annotations.set('editable', boolean);
+			return this;
+		};
+		return this.models.annotations.get('editable');
+	},
+
+	interactive: function( boolean ) {
+		if ( _.isBoolean(boolean) ) {
+			this.models.marks.set('interactive', boolean);
+			return this;
+		};
+		return this.models.marks.get('interactive');
 	}
 
 });

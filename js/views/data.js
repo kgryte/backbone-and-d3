@@ -39,7 +39,7 @@ Chart.Layers.Data = Backbone.View.extend({
 
 			// Set listeners:
 			if (options.events) {
-				this.events = options.events;
+				this._events = options.events;
 				this._listeners();
 			};
 
@@ -62,17 +62,24 @@ Chart.Layers.Data = Backbone.View.extend({
 
 		this._initGraph()
 			._initDraw()
-			._initDomains()
 			.draw();
+		// NOTE: a listener is set on the x- and y-domains such that the chart is redrawn upon domain changes (in _initDraw()). This listener triggers this.draw(). In which case, the second .draw() is redundant and causes the paths to be redrawn unnecessarily. In the event that a single event-dispatcher is not provided, however (i.e., no listeners are set), we need to retain the call to draw().
 
 		return this;
 
 	}, // end METHOD render()
 
+	draw: function() {
+		// this is overwritten internally, depending on graph type.
+	}, // end METHOD draw()
+
 	redraw: function() {
 		
 		this._initDraw()
 			.draw();
+
+		// Broadcast the redraw event:
+		this._events.trigger('data:redraw');
 
 		return this;
 
@@ -84,11 +91,6 @@ Chart.Layers.Data = Backbone.View.extend({
 			._initData();
 
 		var marks = this.model.get('layers').data.marks,
-			xScale = this.model.get('axes').get('xScale'),
-			yScale = this.model.get('axes').get('yScale'),
-			interpolation = this.model.get('marks').get('interpolation'),
-			xVal = this._xValue,
-			yVal = this._yValue,
 			dataset = this._dataset;
 
 		// Create the enter selection and append mark elements (paths):
@@ -100,13 +102,9 @@ Chart.Layers.Data = Backbone.View.extend({
 
 		this._colors( marks, 'stroke' );
 
-		// Initialize the path generator:
-		var line = d3.svg.line()
-			.x( function(d) { return xScale( xVal(d) ); } )
-			.y( function(d) { return yScale( yVal(d) ); } )
-			.interpolate( interpolation );
-
-		this.draw = function() {			
+		this.draw = function() {	
+			// NOTE: each time draw is called, need to update the path generator in the event any function pointers have changed; e.g., user changed x-axis generator from linear() to sqrt():
+			var line = this._line(); 
 			marks.attr('d', function(d) {
 				return line( dataset(d) );
 			});
@@ -116,18 +114,27 @@ Chart.Layers.Data = Backbone.View.extend({
 		return this;
 	}, // end METHOD line()
 
+	_line: function() {
+		var xScale = this.model.get('axes').get('xScale'),
+			yScale = this.model.get('axes').get('yScale'),
+			interpolation = this.model.get('marks').get('interpolation'),
+			xVal = this._xValue,
+			yVal = this._yValue;
+
+		// Return the path generator:
+		return d3.svg.line()
+			.x( function(d) { return xScale( xVal(d) ); } )
+			.y( function(d) { return yScale( yVal(d) ); } )
+			.interpolate( interpolation );
+		
+	}, // end METHOD _line()
+
 	area: function() {
 
 		this._removeMarks()
 			._initData();
 
 		var marks = this.model.get('layers').data.marks,
-			height = this.model.get('canvas').get('_graph').height,
-			xScale = this.model.get('axes').get('xScale'),
-			yScale = this.model.get('axes').get('yScale'),
-			interpolation = this.model.get('marks').get('interpolation'),
-			xVal = this._xValue,
-			yVal = this._yValue,
 			dataset = this._dataset;
 
 		// Create the enter selection and append mark elements (paths):
@@ -139,14 +146,8 @@ Chart.Layers.Data = Backbone.View.extend({
 
 		this._colors( marks, 'fill' );
 
-		// Initialize the path generator:
-		var area = d3.svg.area()
-			.x( function(d,i) { return xScale( xVal(d) ); } )
-			.y0( height )
-			.y1( function(d,i) { return yScale( yVal(d) ); } )
-			.interpolate( interpolation );
-
 		this.draw = function() {
+			var area = this._area();
 			marks.attr('d', function(d) {
 				return area( dataset(d) );
 			});
@@ -156,17 +157,37 @@ Chart.Layers.Data = Backbone.View.extend({
 		return this;
 	}, // end METHOD area()
 
+	_area: function() {
+		var height = this.model.get('canvas').get('_graph').height,
+			xScale = this.model.get('axes').get('xScale'),
+			yScale = this.model.get('axes').get('yScale'),
+			interpolation = this.model.get('marks').get('interpolation'),
+			xVal = this._xValue,
+			yVal = this._yValue;
+		
+		// Return the path generator:
+		return d3.svg.area()
+			.x( function(d,i) { return xScale( xVal(d) ); } )
+			.y0( height )
+			.y1( function(d,i) { return yScale( yVal(d) ); } )
+			.interpolate( interpolation );
+
+	}, // end METHOD _area()
+
+	jitter: function() {
+
+	}, // end METHOD jitter()
+
+	_jitter: function() {
+
+	}, // end METHOD _jitter()
+
 	scatter: function() {
 
 		this._removeMarks()
 			._initData();
 
 		var marks = this.model.get('layers').data.marks,
-			size = this.model.get('marks').get('size'),
-			xScale = this.model.get('axes').get('xScale'),
-			yScale = this.model.get('axes').get('yScale'),
-			xVal = this._xValue,
-			yVal = this._yValue,
 			dataset = this._dataset;
 
 		// Create the enter selection and append mark elements (circles):
@@ -184,16 +205,69 @@ Chart.Layers.Data = Backbone.View.extend({
 		this._colors( marks, 'fill' );
 
 		this.draw = function() {
-			marks.selectAll('.point')
-				.attr('cx', function(d) { return xScale( xVal(d) ); } )
-				.attr('cy', function(d) { return yScale( yVal(d) ); } )
-				.attr('r', Math.sqrt(size) );
+			this._scatter( marks );
 			return this;
 		}; 
 
 		return this;
 
 	}, // end METHOD scatter()
+
+	_scatter: function( selection ) {
+		var size = this.model.get('marks').get('size'),
+			xScale = this.model.get('axes').get('xScale'),
+			yScale = this.model.get('axes').get('yScale'),
+			xVal = this._xValue,
+			yVal = this._yValue;
+
+		selection.selectAll('.point')
+			.attr('cx', function(d) { return xScale( xVal(d) ); } )
+			.attr('cy', function(d) { return yScale( yVal(d) ); } )
+			.attr('r', Math.sqrt(size) );
+
+	}, // end METHOD _scatter()
+
+	bubble: function() {
+		this._removeMarks()
+			._initData();
+
+		var marks = this.model.get('layers').data.marks,
+			dataset = this._dataset;
+
+		// Create the enter selection and append mark elements (circles):
+		marks.enter()
+			.append('svg:g')
+				.attr('class', function(d,i) {
+					return 'marks bubble ' + 'bubble' + i;
+				})
+		  .selectAll('.point')
+		  	.data(function(d) { return dataset(d); } )
+		  .enter()
+			.append('svg:circle')
+				.attr('class', 'point');
+
+		this._colors( marks, 'fill' );
+
+		this.draw = function() {
+			this._bubble( marks );
+			return this;
+		}; 
+
+		return this;
+	}, // end METHOD bubble()
+
+	_bubble: function() {
+		var xScale = this.model.get('axes').get('xScale'),
+			yScale = this.model.get('axes').get('yScale'),
+			xVal = this._xValue,
+			yVal = this._yValue,
+			zVal = this._zValue;
+
+		selection.selectAll('.point')
+			.attr('cx', function(d) { return xScale( xVal(d) ); } )
+			.attr('cy', function(d) { return yScale( yVal(d) ); } )
+			.attr('r', function(d) { return Math.sqrt( zVal(d) ); } );
+	}, // end METHOD _bubble()
 
 	stacked: function( offset ) {
 		this._removeMarks();
@@ -212,28 +286,19 @@ Chart.Layers.Data = Backbone.View.extend({
 		
 		this._initData();
 
-		var marks = this.model.get('layers').data.marks,
-			xScale = this.model.get('axes').get('xScale'),
-			yScale = this.model.get('axes').get('yScale'),
-			interpolation = this.model.get('marks').get('interpolation');
+		var marks = this.model.get('layers').data.marks;
 
 		// Create the enter selection and append mark elements (paths):
 		marks.enter() 
 		  	.append('svg:path')
 		  		.attr('class', function(d,i) {
-		  			return 'marks area ' + 'area' + i;
+		  			return 'marks stacked area ' + 'area' + i;
 		  		});
 
 		this._colors( marks, 'fill' );
 
-		// Initialize the path generator:
-		var area = d3.svg.area()
-			.x( function(d) { return xScale( xVal(d) ); } )
-			.y0( function(d) { return yScale( d.get('y0' ) ); } )
-			.y1( function(d) { return yScale( yVal(d) + d.get('y0') ); } )
-			.interpolate( interpolation );
-
 		this.draw = function() {
+			var area = this._stacked();
 			marks.attr('d', function(d) {
 				return area( dataset(d) );
 			});
@@ -242,6 +307,22 @@ Chart.Layers.Data = Backbone.View.extend({
 
 		return this;
 	}, // end METHOD stacked()
+
+	_stacked: function() {
+		var xScale = this.model.get('axes').get('xScale'),
+			yScale = this.model.get('axes').get('yScale'),
+			xVal = this._xValue,
+			yVal = this._yValue,
+			interpolation = this.model.get('marks').get('interpolation');
+
+		// Return the path generator:
+		return d3.svg.area()
+			.x( function(d) { return xScale( xVal(d) ); } )
+			.y0( function(d) { return yScale( d.get('y0' ) ); } )
+			.y1( function(d) { return yScale( yVal(d) + d.get('y0') ); } )
+			.interpolate( interpolation );
+
+	}, // end METHOD _stacked()
 
 	data: function( data ) {
 		if (data) {
@@ -290,7 +371,7 @@ Chart.Layers.Data = Backbone.View.extend({
 
 	events: function( obj ) {
 		if (obj) {
-			this.events = obj;
+			this._events = obj;
 			this._initialized();
 			return this;
 		}
@@ -300,7 +381,7 @@ Chart.Layers.Data = Backbone.View.extend({
 	_initialized: function() {
 		if ( this.model.get('data') && this.model.get('marks') && this.model.get('canvas') && this.model.get('axes') && this.model.get('layers') ) {
 			this.init = true;
-			if (this.events) { 
+			if (this._events) { 
 				this._listeners(); 
 			};
 		}else {
@@ -310,18 +391,8 @@ Chart.Layers.Data = Backbone.View.extend({
 
 	_listeners: function() {
 
-		// Subscribers:
-		this.events.on('data:collection:add', this._initData, this);
-		this.events.on('data:collection:remove', removeData, this);
-
-		this.events.on('axes:xDomain:change axes:yDomain:change axes:xType:change axes:yType:change', draw, this);
-
-		this.events.on('marks:type:change marks:interpolation:change marks:colors:change', this.redraw, this);
-		this.events.on('marks:size:change', draw, this);
-		
-		return this;
-
-		function removeData() {
+		// Define event callbacks:
+		var removeData = function() {
 
 			this.model.get('layers').data.marks
 				.exit()
@@ -329,10 +400,67 @@ Chart.Layers.Data = Backbone.View.extend({
 
 		}; // end FUNCTION removeData()		
 
-		function draw() {
-			var that = this;
-			setTimeout(function() { that.draw();}, 10);
-		};
+		var draw = function() {
+			// Housed in its own function due to pointers generated dynamically; this ensures that we always have the correct function pointer:
+			this.draw();
+		}; // end FUNCTION draw()
+
+		var toggleInteraction = function() {
+
+			if ( this.model.get('marks').get('interactive') ) {
+				this._initInteraction();
+			}else {
+
+				var marks = this.model.get('layers').data.marks;
+
+				// Remove the hover events:
+				marks.style('cursor', 'pointer')
+					.on('mouseover.hover', null )
+					.on('mouseout.hover', null );
+
+			}; // end IF/ELSE
+		}; // end FUNCTION toggleInteraction()
+
+		//
+		var subscribe = function() {
+			// Subscribers:
+			var events = {
+				'data:collection:add': this._initData,
+				'data:collection.remove': removeData,
+				'axes:xDomain:change': draw,
+				'axes:yDomain:change': draw,
+				'axes:xType:change': draw,
+				'axes:yType:change': draw,
+				'marks:type:change': this.redraw,
+				'marks:interpolation:change': this.redraw,
+				'marks:colors:change': this.redraw,
+				'marks:size:change': draw,
+				'marks:interactive:change': toggleInteraction,
+				'canvas:width:change': draw,
+				'canvas:height:change': draw
+			};
+
+			_.each(events, function(clbk, event) {
+				this._events.on(event, clbk, this);
+			}, this);
+			
+		}; // end FUNCTION subscribe()
+
+		var bind = function() {
+			subscribe = _.bind(subscribe, this);
+			removeData = _.bind(removeData, this);
+			draw = _.bind(draw, this);
+			toggleInteraction = _.bind(toggleInteraction, this);		
+		}; // end FUNCTION bind()	
+
+		// Ensure context:
+		bind = _.bind(bind, this);
+		bind();
+
+		// Channel subscriptions:
+		subscribe();
+
+		return this;
 		
 	}, // end METHOD _listeners()
 
@@ -357,6 +485,10 @@ Chart.Layers.Data = Backbone.View.extend({
 	}, // end METHOD _initGraph()
 
 	_initDraw: function() {
+		// Initialize the domains:
+		this._initDomains();
+
+		// Initialize the graph generators:
 		switch ( this.model.get('marks').get('type') ) {
 			case 'line':
 				this.line();
@@ -368,16 +500,23 @@ Chart.Layers.Data = Backbone.View.extend({
 				this.scatter();
 				break;
 			case 'steamgraph':
-				this.stacked( 'wiggle' );
+				this.stacked( 'wiggle' )
+					._yOffset();
 				break;
 			case 'stackedArea':
-				this.stacked( 'zero' );
+				this.stacked( 'zero' )
+					._yOffset();
 				break;
 			default:
 				this.line();
 				console.log('WARNING:unrecognized chart type. Plotting default: "line".');
 				break;
 		}; // end SWITCH (type)
+
+		// Initialize interaction:
+		if ( this.model.get('marks').get('interactive') ) {
+			this._initInteraction();
+		}; // end IF
 
 		return this;
 
@@ -404,6 +543,35 @@ Chart.Layers.Data = Backbone.View.extend({
 		};
 		return data;
 	}, // end METHOD _getData()	
+
+	_initInteraction: function() {
+		var marks = this.model.get('layers').data.marks;
+
+		// Set the hover events:
+		marks.style('cursor', 'pointer')
+			.on('mouseover.hover', mouseover )
+			.on('mouseout.hover', mouseout );
+
+		return this;
+	
+		function mouseover() {
+			var self = this;				
+
+			marks.transition()
+				.filter( function(d) {
+					return self != this;
+				})
+				.duration(1000)
+				.style('opacity', 0.3);
+		}; // end FUNCTION mouseover()
+
+		function mouseout() {
+			marks.transition()
+				.duration(200)
+				.style('opacity', 1);
+		}; // end FUNCTION mouseout()
+	
+	}, // end METHOD _initInteraction()
 
 	_colors: function( selection, property ) {
 		var colors = this.model.get('marks').get('colors');
@@ -439,6 +607,10 @@ Chart.Layers.Data = Backbone.View.extend({
 		return d.get('y');
 	}, // end METHOD y-accessor
 
+	_zValue: function(d) {
+		return d.get('z');
+	}, // end METHOD z-accessor
+
 	_dataset: function(d) {
 		return d.get('data').slice();
 	}, // end METHOD dataset accessor
@@ -457,34 +629,69 @@ Chart.Layers.Data = Backbone.View.extend({
 	}, // end METHOD _removeMarks()
 
 	_initDomains: function() {
-		// Update the domains:
-		var collection = this.model.get('data'),
-			data = collection.slice(0);
-
-		var xMin = min('x'),
-			xMax = max('x'),
-			yMin = min('y'),
-			yMax = max('y');
+		// Initialize the domains:
+		var xMin = this._min('x'),
+			xMax = this._max('x'),
+			yMin = this._min('y'),
+			yMax = this._max('y');
 
 		this.model.get('axes').set({
 			'xDomain': [xMin, xMax],
 			'yDomain': [yMin, yMax]
 		});
 
+		return this;		
+		
+	}, // end METHOD _initDomains()
+
+	_yOffset: function() {
+		// Offset the yDomain: (stack layouts)
+		var collection = this.model.get('data'),
+			data = collection.slice();
+
+		var yMin = this._min('y0'),
+			yMax = max('y', 'y0');
+
+		this.model.get('axes').set({
+			'yDomain': [yMin, yMax]
+		});
+
 		return this;
 
-		function min( key ) {
-			return d3.min( data, function(d) {
-				return collection.min(d, key)[key];
+		// Custom 'max' function for sum:
+		function max( key1, key2 ) {
+			
+			return d3.max(data, function( dataset ) { 
+				// Return the datum with the largest sum: key1 + key2:
+				var _datum = _.max( dataset.get('data').toJSON(), function( datum ) {
+					return datum[ key1 ] + datum[ key2 ]; 
+				});
+				// Return the sum to d3.max():
+				return _datum[ key1 ] + _datum[ key2 ];
 			});
-		};
 
-		function max( key ) {
-			return d3.max( data, function(d) {
-				return collection.max(d, key)[key];
-			});
-		};
-		
-	} // end METHOD _initDomains()
+		}; // end FUNCTION max()
+				
+	}, // end METHOD _yOffset()
+
+	_max: function( key1, key2 ) {
+		var collection = this.model.get('data'),
+			data = collection.slice();
+
+		return d3.max( data, function(d) {
+			return collection.max(d, key1)[key1];
+		});
+
+	}, // end METHOD _max()
+
+	_min: function( key ) {
+		var collection = this.model.get('data'),
+			data = collection.slice();
+
+		return d3.min( data, function(d) {
+			return collection.min(d, key)[key];
+		});
+
+	} // end METHOD _min()
 
 });

@@ -39,7 +39,7 @@ Chart.Layers.Base = Backbone.View.extend({
 
 			// Set listeners:
 			if (options.events) {
-				this.events = options.events;
+				this._events = options.events;
 				this._listeners();
 			};
 
@@ -95,6 +95,7 @@ Chart.Layers.Base = Backbone.View.extend({
 			.append("svg:clipPath")
 				.attr("id", clipPathID)
 				.append("svg:rect")
+					.attr('class', 'clipPath')
 					.attr("width", graph.width)
 					.attr("height", graph.height);
 
@@ -131,7 +132,7 @@ Chart.Layers.Base = Backbone.View.extend({
 
 	events: function( obj ) {
 		if (obj) {
-			this.events = obj;
+			this._events = obj;
 			this._initialized();
 			return this;
 		}
@@ -141,7 +142,7 @@ Chart.Layers.Base = Backbone.View.extend({
 	_initialized: function() {
 		if ( this.model.get('el') && this.model.get('canvas') && this.model.get('layers') ) {
 			this.init = true;
-			if (this.events) { 
+			if (this._events) { 
 				this._listeners(); 
 			};
 		}else {
@@ -150,7 +151,38 @@ Chart.Layers.Base = Backbone.View.extend({
 	},
 
 	_listeners: function() {
-		//
-	}
+		
+		var resize = function() {
+			var layers = this.model.get('layers'),
+				canvas = this.model.get('canvas'),
+				width = canvas.get('width'),
+				height = canvas.get('height'),
+				margin = canvas.get('margin'),
+				graph = canvas.get('_graph');
+
+			// Update the figure container:
+			layers.container.attr('width', width);
+			
+			// Update the canvas:
+			layers.base.attr('width', width)
+				.attr('height', height);
+
+			// Update the chart area:
+			layers.chart.attr('transform', 'translate(' + margin[3] + ',' + margin[0] + ')');
+
+			// Update the clip path:
+			layers.chart.selectAll('.clipPath')
+				.attr("width", graph.width)
+				.attr("height", graph.height);
+
+		}; // end FUNCTION resize()
+
+		_.bind(resize, this);
+
+		this._events.on('canvas:width:change canvas:height:change', resize, this);
+
+		return this;
+
+	} // end METHOD _listeners()
 
 });

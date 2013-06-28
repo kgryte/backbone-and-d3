@@ -60,6 +60,9 @@ Chart.Models.Axes = Backbone.ChartModel.extend({
 			// Round:
 			round: true, // rounds output values to integers; D3 --> .nice()
 
+			// Edit on figure:
+			editable: true, 
+
 			// Event dispatcher:
 			events: null
 		};
@@ -156,7 +159,7 @@ Chart.Models.Axes = Backbone.ChartModel.extend({
 					};
 					break;
 
-				case 'round':
+				case 'round': case 'editable':
 					if ( !_.isBoolean( val ) ) {
 						errors[key] = prefix + 'Assigned value must be a boolean: true or false.';
 					}; 

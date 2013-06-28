@@ -30,13 +30,25 @@ Chart.Models.Annotations = Backbone.ChartModel.extend({
 			title: '',
 			legend: [],
 			caption: '',
-			dataCursor: false
+			dataCursor: true,
+
+			// Edit on figure:
+			editable: true,
+
+			// Interaction:
+			interactive: true,
+
+			// Event dispatcher:
+			events: null
 		};
 
 	},
 
 	initialize: function() {		
-
+		// Publish to the event dispatcher:
+		if ( this.get('events') ) {
+			this._listeners();
+		}; // end IF (dispatcher)
 	},
 
 	validate: function( attrs, options ) {
@@ -89,10 +101,20 @@ Chart.Models.Annotations = Backbone.ChartModel.extend({
 					};					
 					break;
 
-				case 'dataCursor':
+				case 'dataCursor': case 'editable': case 'interactive':
 					if ( !_.isBoolean( val ) ) {
 						errors[key] = prefix + 'Assigned value must be a boolean: true or false.';
 					}; 
+					break;
+
+				case 'events':
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Assigned value must be an object.';
+					}else {
+						if ( !val.hasOwnProperty('trigger') || !_.isFunction( val.trigger) ) {
+							errors[key] + prefix + 'Assigned object must have a trigger method.';
+						};
+					};
 					break;
 
 				default:
@@ -104,6 +126,43 @@ Chart.Models.Annotations = Backbone.ChartModel.extend({
 
 		}; // end FUNCTION validator(key)
 		
-	} // end METHOD validate()
+	}, // end METHOD validate()
+
+	_listeners: function() {
+		var events = this.get('events');
+
+		// Bind listeners:
+		this.on("change:title", title, this);
+		this.on("change:caption", caption, this);
+		this.on("change:legend", legend, this);
+		this.on("change:dataCursor", dataCursor, this);
+		this.on("change:interactive", interactive, this);
+		this.on("change:editable", editable, this);
+		
+		function title() {
+			events.trigger('annotations:title:change');
+		};
+
+		function caption() {
+			events.trigger('annotations:caption:change');
+		};
+
+		function legend() {
+			events.trigger('annotations:legend:change');
+		};
+
+		function dataCursor() {
+			events.trigger('annotations:dataCursor:change');
+		};
+
+		function interactive() {
+			events.trigger('annotations:interactive:change');
+		};
+
+		function editable() {
+			events.trigger('annotations:editable:change');
+		};
+
+	}, // end METHOD _listeners()
 
 });

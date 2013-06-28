@@ -39,7 +39,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 			// Set listeners:
 			if (options.events) {
-				this.events = options.events;
+				this._events = options.events;
 				this._listeners();
 			};
 
@@ -137,7 +137,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 	events: function( obj ) {
 		if (obj) {
-			this.events = obj;
+			this._events = obj;
 			this._initialized();
 			return this;
 		}
@@ -147,7 +147,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 	_initialized: function() {
 		if ( this.model.get('canvas') && this.model.get('axes') && this.model.get('layers') ) {
 			this.init = true;
-			if (this.events) { 
+			if (this._events) { 
 				this._listeners(); 
 			};
 		}else {
@@ -157,16 +157,8 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 	_listeners: function() {
 
-		// Subscribers:		
-		this.events.on('axes:xLabel:change', xLabel, this);
-		this.events.on('axes:yLabel:change', yLabel, this);
-
-		this.events.on('axes:xDomain:change axes:xType:change axes:xScale:change', xAxis, this);
-		this.events.on('axes:yDomain:change axes:yType:change axes:yScale:change', yAxis, this);
-
-		return this;
-
-		function xLabel() {
+		// Define the event callbacks:
+		var xLabel = function() {
 			var layers = this.model.get('layers'),
 				axes = this.model.get('axes');
 
@@ -174,7 +166,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 				.text( axes.get('xLabel') );
 		}; // end FUNCTION xLabel()
 
-		function yLabel() {
+		var yLabel = function() {
 			var layers = this.model.get('layers'),
 				axes = this.model.get('axes');
 
@@ -182,19 +174,85 @@ Chart.Layers.Axes = Backbone.View.extend({
 				.text( axes.get('yLabel') );
 		}; // end FUNCTION yLabel()
 
-		function xAxis() {
+		var xAxis = function() {
 			var layers = this.model.get('layers'),
 				axes = this.model.get('axes');
 
 			layers.axis.x.call( axes.get('xAxis') );		
 		}; // end FUNCTION xAxis()
 
-		function yAxis() {
+		var yAxis = function() {
 			var layers = this.model.get('layers'),
 				axes = this.model.get('axes');
 
 			layers.axis.y.call( axes.get('yAxis') );		
 		}; // end FUNCTION yAxis()
+
+		var resize = function() {
+
+			// Local variables:
+			var canvas = this.model.get('canvas'),
+				axes = this.model.get('axes'),
+				layers = this.model.get('layers'),
+				graph = canvas.get('_graph'),
+				marginLeft = canvas.get('marginLeft');	
+
+			// Set the ranges: (note: these trigger events to auto-update the scales)
+			axes.set('xRange', [0, graph.width]);
+			axes.set('yRange', [graph.height, 0]);	
+
+			// Update the axes:
+			layers.axis.x.attr("transform", "translate(0," + graph.height + ")");
+			xAxis();
+
+			layers.axis.x.selectAll('.label').attr("x", graph.width / 2);
+
+			yAxis();
+
+			layers.axis.y.selectAll('.label').attr("y", -(marginLeft-6))
+				.attr("x", -(graph.height / 2));
+
+		}; // end FUNCTION resize()
+
+		// 
+		var subscribe = function() {
+			// Subscribers:
+			var events = {
+				'axes:xLabel:change': xLabel,
+				'axes:yLabel:change': yLabel,
+				'axes:xDomain:change': xAxis,
+				'axes:yDomain:change': yAxis,
+				'axes:xType:change': xAxis,
+				'axes:yType:change': yAxis,
+				'axes:xScale:change': xAxis,
+				'axes:yScale:change': yAxis,
+				'canvas:width:change': resize,
+				'canvas:height:change': resize
+			};
+
+			_.each(events, function(clbk, event) {
+				this._events.on(event, clbk, this);
+			}, this);
+			
+		}; // end FUNCTION subscribe()
+
+		var bind = function() {
+			subscribe = _.bind(subscribe, this);
+			xLabel = _.bind(xLabel, this);
+			yLabel = _.bind(yLabel, this);
+			xAxis = _.bind(xAxis, this);
+			yAxis = _.bind(yAxis, this);
+			resize = _.bind(resize, this);		
+		}; // end FUNCTION bind()	
+
+		// Ensure context:
+		bind = _.bind(bind, this);
+		bind();
+
+		// Channel subscriptions:
+		subscribe();
+		
+		return this;
 
 	} // end METHOD listeners()
 

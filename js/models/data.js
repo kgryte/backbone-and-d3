@@ -138,7 +138,7 @@ Chart.Models.Datum = Backbone.DataModel.extend({
 			}; // end IF
 
 			// Get any extraneous keys:
-			invalidKeys = _.without(keys, 'x', 'y'); //, 'z', 'x0', 'x1', 'x2', 'y0', 'y1', 'y2', 'z0', 'z1', 'z2'
+			invalidKeys = _.without(keys, 'x', 'y', 'z'); //, 'x0', 'x1', 'x2', 'y0', 'y1', 'y2', 'z0', 'z1', 'z2'
 
 			// Check the length of invalid keys:
 			if (invalidKeys.length != 0) {				
@@ -200,7 +200,7 @@ Chart.Models.DataSet = Backbone.RelationalModel.extend({
 
 	defaults: function() {
 		return {
-			'name': 'data-set',
+			'name': 'dataset',
 			'desc': '',
 			'data': null
 		};
