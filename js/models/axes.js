@@ -81,8 +81,8 @@ Chart.Models.Axes = Backbone.ChartModel.extend({
 		}; // end IF
 
 		// Update our axis generators:
-		this._xAxis();
-		this._yAxis();
+		this._xAxis()
+			._yAxis();
 
 		// Publish to the event dispatcher:
 		if ( this.get('events') ) {
@@ -283,34 +283,40 @@ Chart.Models.Axes = Backbone.ChartModel.extend({
 		this.get('xAxis')
 			.orient( this.get('xOrient') )
 			.scale( this.get('xScale') );
+		return this;
 	}, // end FUNCTION xAxis()
 
 	_yAxis: function() {
 		this.get('yAxis')
 			.orient( this.get('yOrient') )
 			.scale( this.get('yScale') );
+		return this;
 	}, // end FUNCTION yAxis()
 
 	_xScale: function() {
 		this.get('xScale')
 			.domain( this.get('xDomain') )
 			.range( this.get('xRange') );
+		return this;
 	}, // end FUNCTION xScale()
 
 	_yScale: function() {
 		this.get('yScale')
 			.domain( this.get('yDomain') )
 			.range( this.get('yRange') );
+		return this;
 	}, // end FUNCTION yScale()
 
 	_xType: function() {
 		this.set('xScale', this._getScale(this.get('xType')) );
 		this._xScale();
+		return this;
 	}, // end FUNCTION xType()
 
 	_yType: function() {
 		this.set('yScale', this._getScale(this.get('yType')) );
 		this._yScale();
+		return this;
 	}, // end FUNCTION yType()
 
 	_getScale: function(type) {

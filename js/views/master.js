@@ -35,7 +35,8 @@ Chart.View = Backbone.View.extend({
 		this.events = _.clone(Backbone.Events);
 
 		// Initialize models and collections:
-		this._initModels();
+		this._initModels()
+			._initCollections();
 
 		// Initialize a layers object into which we will store all created layers:
 		this.layers = {};
@@ -62,7 +63,8 @@ Chart.View = Backbone.View.extend({
 		this._initData();
 		this.chart.data.render();
 
-		this._initAnnotations();
+		this._initAnnotations()
+			._initWidgets();
 
 		return this;
 
@@ -75,13 +77,18 @@ Chart.View = Backbone.View.extend({
 		this.models.axes 	  = new Chart.Models.Axes({events: this.events});
 		this.models.marks	  = new Chart.Models.Marks({events: this.events});
 		this.models.annotations = new Chart.Models.Annotations({events: this.events});
-		
+		this.models.widgets = new Chart.Models.Widgets();	
 
+		return this;
+		
+	},
+
+	_initCollections: function() {
+		// Instantiate data collections:
 		this.collections = {};
 		this.collections.data = new Chart.Collections.Data([],{events: this.events});
 
 		return this;
-		
 	},
 
 	_initCanvas: function() {
@@ -123,6 +130,21 @@ Chart.View = Backbone.View.extend({
 			.axes( this.models.axes )
 			.layers( this.layers )
 			.annotations( this.models.annotations )
+			.render();
+
+		return this;
+	},
+
+	_initWidgets: function() {
+		// Widgets:
+		this.chart.widgets = new Chart.Layers.Widgets();
+
+		this.chart.widgets
+			.events( this.events )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.widgets( this.models.widgets )
 			.render();
 
 		return this;

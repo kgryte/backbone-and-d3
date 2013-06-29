@@ -167,7 +167,7 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 			]);
 		}; // end IF/ELSE
 		return this;				
-	}, // end FUNCTION setMargin()
+	}, // end METHOD _setMargin()
 
 	_graphSize: function() {
 		var height = this.get('height'),
@@ -179,7 +179,7 @@ Chart.Models.Canvas = Backbone.ChartModel.extend({
 		};
 		this.set('_graph', _graph, {validate: false});
 		return this;
-	} // end FUNCTION graphSize()
+	} // end METHOD _graphSize()
 
 }); 
 

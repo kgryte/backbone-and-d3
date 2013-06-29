@@ -25,9 +25,7 @@
 *
 */
 
-var Brush  = {};
-
-Brush.Model = Chart.Model.extend({
+Chart.Models.Brush = Backbone.ChartModel.extend({
 
 	defaults: function() {
 
@@ -42,7 +40,7 @@ Brush.Model = Chart.Model.extend({
 
 			// Axis orientation:
 			orient: '', // 
-			orientations: [],
+			_orientations: [],
 			
 			// Axis limits [data]:
 			domain: [0, 1], // Limits
@@ -69,123 +67,24 @@ Brush.Model = Chart.Model.extend({
 		this.set('marginBottom', margin[2]);
 		this.set('marginLeft'  , margin[3]);	
 
-		// Bind a listener to ensure consistency:
-		this.on("change:margin change:marginTop change:marginRight change:marginBottom change:marginLeft", setMargin, this);
-
 		// Calculate the effective brush size:
-		var that = this;
-		brushSize();
+		this._brushSize();
 
-		// Bind a listener to recalculate brush size upon change:
-		this.on("change:height change:width change:margin", brushSize, this);
+		// Initialize the listeners:
+		this._listeners();
 
 		// Update our scales:
-		type(); // could also use scale(), but type() also accounts for a change in scale type.
+		this._type(); // could also use scale(), but type() also accounts for a change in scale type.
 		
 		this.get('scale').nice();
 		
 		// Update our axis generators:
-		this.axis();
+		this._axis();
+
+		// Initialize the brush generator:
+		this._brush();
 		
-		//Update the brush generators:
-		brush();
-		
-		// Bind listeners to ensure model consistency:
-		this.on("change:orient change:scale", this.axis, this);		
-		this.on("change:domain change:range", scale, this);		
-		this.on("change:type", type, this);
-		this.on('change:scale', brush, this);
-		
-		function brush() {
-			var _brush = d3.svg.brush()
-				.x( that.get('scale') );
-			that.set('_brush', _brush, {validate: false});
-		}; // end FUNCTION brush()
-
-		function scale() {
-			this.get('scale')
-				.domain( this.get('domain') )
-				.range( this.get('range') );
-		}; // end FUNCTION scale()
-
-		function type() {
-			that.set('scale', that.getScale(that.get('type')) );
-		}; // end FUNCTION type()
-
-		function setMargin() {
-			if ( this.hasChanged("margin") ) {
-				var margin = this.get('margin');
-				// Set convenience variables:
-				this.set('marginTop'   , margin[0]);
-				this.set('marginRight' , margin[1]);
-				this.set('marginBottom', margin[2]);
-				this.set('marginLeft'  , margin[3]);	
-			}else {
-				this.set('margin', [
-					this.get('marginTop'),
-					this.get('marginRight'),
-					this.get('marginBottom'),
-					this.get('marginLeft')
-				]);
-			}; // end IF/ELSE				
-		}; // end FUNCTION setMargin()
-
-		function brushSize() {
-			var height = that.get('height'),
-				width = that.get('width');
-				margin = that.get('margin');
-			var _brush = {
-				'width': width - margin[1] - margin[3],
-				'height': height - margin[0] - margin[2]
-			};
-			that.set('_brush', _brush, {validate: false});
-		}; // end FUNCTION brushSize()
-
 	}, // end METHOD initialize()
-
-	axis: function() {
-		this.get('axis')
-			.orient( that.get('orient') )
-			.scale( that.get('scale') );				
-	},
-
-	getScale: function(type) {
-		var scale;
-		switch (type) {
-			case 'linear':
-				scale = d3.scale.linear();
-				break;
-			case 'pow':
-				scale = d3.scale.pow();
-				break;
-			case 'sqrt':
-				scale = d3.scale.sqrt();
-				break;
-			case 'log':
-				scale = d3.scale.log();
-				break;
-			case 'quantize':
-				scale = d3.scale.quantize();
-				break;
-			case 'threshold':
-				scale = d3.scale.threshold();
-				break;
-			case 'quantile':
-				scale = d3.scale.quantile();
-				break;
-			case 'ordinal':
-				scale = d3.scale.ordinal();
-				break;
-			case 'time':
-				scale = d3.time.scale();
-				break; 
-			default:
-				console.log('WARNING:unrecognized scale type. Using default: d3.scale.linear()');
-				scale = d3.scale.linear();
-				break;
-		};
-		return scale;
-	}, // end FUNCTION getScale(type)
 
 	validate: function( attrs, options ) {
 		// Check that we have supplied attributes:
@@ -203,7 +102,7 @@ Brush.Model = Chart.Model.extend({
 			// Get the keys:
 			var keys = _.keys(attrs);
 			// Get possible axis orientations:
-			var orientations = this.get('orientations');
+			var orientations = attrs._orientations;			
 			// Iterate over each key and perform appropriate validation:
 			_.each(keys, validator);
 		}; 
@@ -233,7 +132,7 @@ Brush.Model = Chart.Model.extend({
 					}
 					break;
 
-				case 'orient'::
+				case 'orient':
 					if ( !_.isString( val ) ) {
 						errors[key] = prefix + 'Assigned value must be a string.'
 					}else {
@@ -241,6 +140,10 @@ Brush.Model = Chart.Model.extend({
 							errors[key] = prefix + 'Assigned value must be either ' + orientations[0] + ' or ' + orientations[1] + '.';
 						};
 					};
+					break;
+
+				case '_orientations':
+
 					break;
 
 				case 'domain': case 'range':
@@ -281,28 +184,176 @@ Brush.Model = Chart.Model.extend({
 
 		}; // end FUNCTION validator(key)
 
-	} // end METHOD validate()	
+	}, // end METHOD validate()	
+
+	_listeners: function() {
+		// Bind a listener to ensure consistency:
+		this.on("change:margin change:marginTop change:marginRight change:marginBottom change:marginLeft", margin, this);
+
+		// Bind a listener to recalculate brush size upon change:
+		this.on("change:height", height, this);
+		this.on("change:width", width, this);
+
+		// Bind listeners to ensure model consistency:
+		this.on("change:orient", orient, this);
+		this.on("change:domain", domain, this);
+		this.on("change:range", range, this);		
+		this.on("change:type", type, this);
+		this.on('change:scale', scale, this);
+
+		function margin() {
+			this._setMargin()
+				._brushSize();
+		};
+
+		function height() {
+			this._brushSize();
+		};
+
+		function width() {
+			this._brushSize();
+		};
+
+		function orient() {
+			this._axis();
+		}; 
+
+		function domain() {
+			this._scale();
+		};
+		
+		function range() {
+			this._scale();
+		};
+
+		function type() {
+			this._type();
+		}; 
+
+		function scale() {
+			this._axis()
+				._brush();
+		}; 
+
+	}, // end METHOD listeners()
+
+	_brush: function() {
+		var brush = d3.svg.brush();
+		this.set('brush', brush, {validate: false});
+		return this;
+	}, // end METHOD _brush()
+
+	_axis: function() {
+		this.get('axis')
+			.orient( this.get('orient') )
+			.scale( this.get('scale') );
+		return this;				
+	}, // end METHOD _axis()
+	
+	_scale: function() {
+		this.get('scale')
+			.domain( this.get('domain') )
+			.range( this.get('range') );
+		return this;
+	}, // end METHOD _scale()
+
+	_type: function() {
+		this.set('scale', this._getScale(this.get('type')) );
+		this._scale();
+		return this;
+	}, // end METHOD _type()
+
+	_getScale: function(type) {
+		var scale;
+		switch (type) {
+			case 'linear':
+				scale = d3.scale.linear();
+				break;
+			case 'pow':
+				scale = d3.scale.pow();
+				break;
+			case 'sqrt':
+				scale = d3.scale.sqrt();
+				break;
+			case 'log':
+				scale = d3.scale.log();
+				break;
+			case 'quantize':
+				scale = d3.scale.quantize();
+				break;
+			case 'threshold':
+				scale = d3.scale.threshold();
+				break;
+			case 'quantile':
+				scale = d3.scale.quantile();
+				break;
+			case 'ordinal':
+				scale = d3.scale.ordinal();
+				break;
+			case 'time':
+				scale = d3.time.scale();
+				break; 
+			default:
+				console.log('WARNING:unrecognized scale type. Using default: d3.scale.linear()');
+				scale = d3.scale.linear();
+				break;
+		};
+		return scale;
+	}, // end FUNCTION _getScale(type)
+
+
+	_setMargin: function() {
+		if ( this.hasChanged("margin") ) {
+			var margin = this.get('margin');
+			// Set convenience variables:
+			this.set('marginTop'   , margin[0]);
+			this.set('marginRight' , margin[1]);
+			this.set('marginBottom', margin[2]);
+			this.set('marginLeft'  , margin[3]);	
+		}else {
+			this.set('margin', [
+				this.get('marginTop'),
+				this.get('marginRight'),
+				this.get('marginBottom'),
+				this.get('marginLeft')
+			]);
+		}; // end IF/ELSE
+		return this;				
+	}, // end METHOD _setMargin()
+
+
+	_brushSize: function() {
+		var height = this.get('height'),
+			width = this.get('width');
+			margin = this.get('margin');
+		var _brush = {
+			'width': width - margin[1] - margin[3],
+			'height': height - margin[0] - margin[2]
+		};
+		this.set('_brush', _brush, {validate: false});
+		return this;
+	} // end METHOD _brushSize()
 
 });
 
 
 
 
-var xBrush = Brush.Model.extend({
+Chart.Models.xBrush = Chart.Models.Brush.extend({
 
 	defaults: function() {
 
 		return {
 			// Brush dimensions:
 			width: 960,	// px
-			height: 50,// px
+			height: 100,// px
 			
 			// As in CSS: [ Top, Right, Bottom, Left]
-			margin: [10, 20, 20, 80]  // px
+			margin: [10, 20, 20, 80],  // px
 
 			// Axis orientation:
 			orient: 'bottom', // either top or bottom
-			orientations: ['top', 'bottom'],
+			_orientations: ['top', 'bottom'],
 			
 			// Axis limits [data]:
 			domain: [0, 1], // xLimits
@@ -321,19 +372,27 @@ var xBrush = Brush.Model.extend({
 
 	},
 
-	axis: function() {
+	_axis: function() {
 		this.get('axis')
-			.orient( that.get('orient') )
-			.scale( that.get('scale') )
-			.tickSize( that.get('height') )
-			.tickPadding( -that.get('height')/2 );		
-	}
+			.orient( this.get('orient') )
+			.scale( this.get('scale') )
+			.tickSize( this.get('_brush').height )
+			.tickPadding( -this.get('_brush').height/2 );	
+		return this;	
+	},
+
+	_brush: function() {
+		var brush = d3.svg.brush()
+			.x( this.get('scale') );
+		this.set('brush', brush, {validate: false});
+		return this;
+	} // end METHOD _brush()
 
 }); 
 
 
 
-var yBrush = Brush.Model.extend({
+Chart.Models.yBrush = Chart.Models.Brush.extend({
 
 	defaults: function() {
 
@@ -343,11 +402,11 @@ var yBrush = Brush.Model.extend({
 			height: 300,// px
 			
 			// As in CSS: [ Top, Right, Bottom, Left]
-			margin: [20, 20, 50, 10]  // px
+			margin: [20, 20, 50, 10],  // px
 
 			// Axis orientation:
 			orient: 'left', // either left or right
-			orientations: ['left', 'right'],
+			_orientations: ['left', 'right'],
 			
 			// Axis limits [data]:
 			domain: [0, 1], // xLimits
@@ -366,13 +425,22 @@ var yBrush = Brush.Model.extend({
 
 	},
 
-	axis: function() {
+	_axis: function() {
 		this.get('axis')
-			.orient( that.get('orient') )
-			.scale( that.get('scale') )
-			.tickSize( that.get('width') )
-			.tickPadding( -that.get('width')/2 );		
-	}
+			.orient( this.get('orient') )
+			.scale( this.get('scale') )
+			.tickSize( this.get('_brush').width )
+			.tickPadding( -this.get('_brush').width/2 );	
+		return this;	
+	},
+
+	_brush: function() {
+		var brush = d3.svg.brush()
+			.y( this.get('scale') );
+		this.set('brush', brush);
+		return this;
+	} // end METHOD _brush()
+
 
 }); 
 

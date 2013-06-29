@@ -31,11 +31,7 @@ App.Models.Chart = Backbone.Model.extend({
 				'duration': 1000,
 				'easing': 'linear'
 			}
-		},
-
-		// Brush settings:
-		brush: false,
-		
+		}	
 
 	}
 
