@@ -437,7 +437,8 @@ Chart.Layers.Data = Backbone.View.extend({
 				'marks:size:change': draw,
 				'marks:interactive:change': toggleInteraction,
 				'canvas:width:change': draw,
-				'canvas:height:change': draw
+				'canvas:height:change': draw,
+				'canvas:margin:change': draw
 			};
 
 			_.each(events, function(clbk, event) {

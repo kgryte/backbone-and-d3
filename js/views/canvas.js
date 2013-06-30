@@ -179,7 +179,7 @@ Chart.Layers.Base = Backbone.View.extend({
 
 		_.bind(resize, this);
 
-		this._events.on('canvas:width:change canvas:height:change', resize, this);
+		this._events.on('canvas:width:change canvas:height:change canvas:margin:change', resize, this);
 
 		return this;
 

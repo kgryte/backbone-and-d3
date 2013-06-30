@@ -97,7 +97,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 
 		layers.axis.y.append("svg:text")
 			.attr("transform", "rotate(-90)")
-			.attr("y", -(marginLeft-6))
+			.attr("y", -74)
 			.attr("dy", ".71em")
 			.attr("x", -(graph.height / 2))
 			.attr("text-anchor", "middle")
@@ -194,8 +194,7 @@ Chart.Layers.Axes = Backbone.View.extend({
 			var canvas = this.model.get('canvas'),
 				axes = this.model.get('axes'),
 				layers = this.model.get('layers'),
-				graph = canvas.get('_graph'),
-				marginLeft = canvas.get('marginLeft');	
+				graph = canvas.get('_graph');	
 
 			// Set the ranges: (note: these trigger events to auto-update the scales)
 			axes.set('xRange', [0, graph.width]);
@@ -206,10 +205,9 @@ Chart.Layers.Axes = Backbone.View.extend({
 			xAxis();
 
 			layers.axis.x.selectAll('.label').attr("x", graph.width / 2);
-
 			yAxis();
 
-			layers.axis.y.selectAll('.label').attr("y", -(marginLeft-6))
+			layers.axis.y.selectAll('.label').attr("y", -74)
 				.attr("x", -(graph.height / 2));
 
 		}; // end FUNCTION resize()
@@ -227,7 +225,8 @@ Chart.Layers.Axes = Backbone.View.extend({
 				'axes:xScale:change': xAxis,
 				'axes:yScale:change': yAxis,
 				'canvas:width:change': resize,
-				'canvas:height:change': resize
+				'canvas:height:change': resize,
+				'canvas:margin:change': resize
 			};
 
 			_.each(events, function(clbk, event) {

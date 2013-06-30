@@ -346,10 +346,10 @@ Chart.Models.xBrush = Chart.Models.Brush.extend({
 		return {
 			// Brush dimensions:
 			width: 960,	// px
-			height: 100,// px
+			height: 150,// px
 			
 			// As in CSS: [ Top, Right, Bottom, Left]
-			margin: [10, 20, 20, 80],  // px
+			margin: [60, 20, 20, 80],  // px
 
 			// Axis orientation:
 			orient: 'bottom', // either top or bottom
@@ -398,7 +398,7 @@ Chart.Models.yBrush = Chart.Models.Brush.extend({
 
 		return {
 			// Brush dimensions:
-			width: 50,	// px
+			width: 100,	// px
 			height: 300,// px
 			
 			// As in CSS: [ Top, Right, Bottom, Left]
@@ -437,7 +437,7 @@ Chart.Models.yBrush = Chart.Models.Brush.extend({
 	_brush: function() {
 		var brush = d3.svg.brush()
 			.y( this.get('scale') );
-		this.set('brush', brush);
+		this.set('brush', brush, {validate: false});
 		return this;
 	} // end METHOD _brush()
 

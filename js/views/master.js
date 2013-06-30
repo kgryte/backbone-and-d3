@@ -145,6 +145,8 @@ Chart.View = Backbone.View.extend({
 			.axes( this.models.axes )
 			.layers( this.layers )
 			.widgets( this.models.widgets )
+			.data( this.collections.data )
+			.marks( this.models.marks )
 			.render();
 
 		return this;

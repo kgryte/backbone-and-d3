@@ -539,7 +539,8 @@ Chart.Layers.Annotations = Backbone.View.extend({
 				'axes:yType:change': updateLegend,
 				'data:redraw': updateCursor,
 				'canvas:width:change': resize,
-				'canvas:height:change': resize
+				'canvas:height:change': resize,
+				'canvas:margin:change': resize
 			};
 
 			_.each(events, function(clbk, event) {
