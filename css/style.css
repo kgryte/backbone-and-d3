@@ -74,6 +74,14 @@ body {
 
 
 
+.caption {
+	line-height: 1.25em;
+}
+
+	.caption:focus {
+		border: none;
+		outline: none;
+	}
 
 .figure-desc {
 	font-style: italic;

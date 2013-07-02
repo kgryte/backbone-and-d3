@@ -31,7 +31,8 @@ var Chart = {
 	Models: {},
 	Layers: {},
 	Collections: {},
-	View: null
+	View: null,
+	API: null
 };
 
 Backbone.ChartModel = Backbone.Model.extend({

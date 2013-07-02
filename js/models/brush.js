@@ -43,7 +43,7 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 			_orientations: [],
 			
 			// Axis limits [data]:
-			domain: [0, 1], // Limits
+			domain: [0, 1e-100], // Limits
 			
 			// Axis limits [visual]:
 			range: [0, 100],
@@ -53,7 +53,10 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 			scale: d3.scale.linear(), // function 
 			
 			// Axis generators:
-			axis: d3.svg.axis() // function
+			axis: d3.svg.axis(), // function
+
+			// Event dispatcher:
+			events: null
 
 		};
 
@@ -70,9 +73,6 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 		// Calculate the effective brush size:
 		this._brushSize();
 
-		// Initialize the listeners:
-		this._listeners();
-
 		// Update our scales:
 		this._type(); // could also use scale(), but type() also accounts for a change in scale type.
 		
@@ -83,6 +83,11 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 
 		// Initialize the brush generator:
 		this._brush();
+
+		// Publish to the event dispatcher:
+		if ( this.get('events') ) {
+			this._listeners();
+		}; // end IF (dispatcher)
 		
 	}, // end METHOD initialize()
 
@@ -175,6 +180,16 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 					};
 					break;
 
+				case 'events':
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Assigned value must be an object.';
+					}else {
+						if ( !val.hasOwnProperty('trigger') || !_.isFunction( val.trigger) ) {
+							errors[key] + prefix + 'Assigned object must have a trigger method.';
+						};
+					};
+					break;
+
 				default:
 					console.log('WARNING:unrecognized attribute: ' + key );
 					invalidKeys.push(key);
@@ -187,6 +202,8 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 	}, // end METHOD validate()	
 
 	_listeners: function() {
+		var events = this.get('events');
+
 		// Bind a listener to ensure consistency:
 		this.on("change:margin change:marginTop change:marginRight change:marginBottom change:marginLeft", margin, this);
 
@@ -204,35 +221,43 @@ Chart.Models.Brush = Backbone.ChartModel.extend({
 		function margin() {
 			this._setMargin()
 				._brushSize();
+			events.trigger('brush:margin:change');
 		};
 
 		function height() {
 			this._brushSize();
+			events.trigger('brush:height:change');
 		};
 
 		function width() {
 			this._brushSize();
+			events.trigger('brush:width:change');
 		};
 
 		function orient() {
 			this._axis();
+			events.trigger('brush:orient:change');
 		}; 
 
 		function domain() {
 			this._scale();
+			events.trigger('brush:domain:change');
 		};
 		
 		function range() {
 			this._scale();
+			events.trigger('brush:range:change');
 		};
 
 		function type() {
 			this._type();
+			events.trigger('brush:type:change');
 		}; 
 
 		function scale() {
 			this._axis()
 				._brush();
+			events.trigger('brush:scale:change');
 		}; 
 
 	}, // end METHOD listeners()
@@ -366,7 +391,10 @@ Chart.Models.xBrush = Chart.Models.Brush.extend({
 			scale: d3.scale.linear(), // function 
 			
 			// Axis generators:
-			axis: d3.svg.axis() // function
+			axis: d3.svg.axis(), // function
+
+			// Event dispatcher:
+			events: null
 			
 		};
 
@@ -419,7 +447,10 @@ Chart.Models.yBrush = Chart.Models.Brush.extend({
 			scale: d3.scale.linear(), // function 
 			
 			// Axis generators:
-			axis: d3.svg.axis() // function
+			axis: d3.svg.axis(), // function
+
+			// Event dispatcher:
+			events: null
 			
 		};
 

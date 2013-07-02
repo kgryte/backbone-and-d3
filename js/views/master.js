@@ -21,161 +21,8 @@
 */
 
 
-
-// Master Controller:
-Chart.View = Backbone.View.extend({
-
-	el: 'body',
-	//tagName: 'figure',
-	//className: 'mvcChart',
-
-	initialize: function( options ) {
-
-		// Initialize an event dispatcher:
-		this.events = _.clone(Backbone.Events);
-
-		// Initialize models and collections:
-		this._initModels()
-			._initCollections();
-
-		// Initialize a layers object into which we will store all created layers:
-		this.layers = {};
-
-		// Initialize a chart object to store view instances:
-		this.chart = {};
-
-		// Handle input options:
-		this._settings( options );
-
-		// Initialize the view instances:
-		this._initCanvas()
-			._initAxes();
-
-	}, // end METHOD initialize()
-
-	render: function() {
-
-		if (this.collections.data.length == 0) {
-			console.log('Have you forgotten to give me some data?');
-			return;
-		}; 	
-		
-		this._initData();
-		this.chart.data.render();
-
-		this._initAnnotations()
-			._initWidgets();
-
-		return this;
-
-	}, // end METHOD render()
-
-	_initModels: function() {
-		// Instantiate relevant models:
-		this.models = {}; 
-		this.models.canvas    = new Chart.Models.Canvas({events: this.events});
-		this.models.axes 	  = new Chart.Models.Axes({events: this.events});
-		this.models.marks	  = new Chart.Models.Marks({events: this.events});
-		this.models.annotations = new Chart.Models.Annotations({events: this.events});
-		this.models.widgets = new Chart.Models.Widgets();	
-
-		return this;
-		
-	},
-
-	_initCollections: function() {
-		// Instantiate data collections:
-		this.collections = {};
-		this.collections.data = new Chart.Collections.Data([],{events: this.events});
-
-		return this;
-	},
-
-	_initCanvas: function() {
-		// Canvas:
-		this.chart.base = new Chart.Layers.Base();
-
-		this.chart.base
-			.elem( this.el )
-			.events( this.events )
-			.canvas( this.models.canvas )
-			.layers( this.layers )
-			.render();	
-
-		return this;	
-	},
-
-	_initAxes: function() {
-		// Axes:
-		this.chart.axes = new Chart.Layers.Axes();
-
-		this.chart.axes
-			.events( this.events )
-			.canvas( this.models.canvas )
-			.axes( this.models.axes )
-			.layers( this.layers )
-			.render();
-
-		return this;
-	},
-
-	_initAnnotations: function() {
-		// Annotations:
-		this.chart.annotations = new Chart.Layers.Annotations();
-
-		this.chart.annotations
-			.events( this.events )
-			.data( this.collections.data )
-			.canvas( this.models.canvas )
-			.axes( this.models.axes )
-			.layers( this.layers )
-			.annotations( this.models.annotations )
-			.render();
-
-		return this;
-	},
-
-	_initWidgets: function() {
-		// Widgets:
-		this.chart.widgets = new Chart.Layers.Widgets();
-
-		this.chart.widgets
-			.events( this.events )
-			.canvas( this.models.canvas )
-			.axes( this.models.axes )
-			.layers( this.layers )
-			.widgets( this.models.widgets )
-			.data( this.collections.data )
-			.marks( this.models.marks )
-			.render();
-
-		return this;
-	},
-
-	_initData: function() {
-		// Data:
-		this.chart.data = new Chart.Layers.Data();
-
-		this.chart.data
-			.data( this.collections.data )
-			.events( this.events )
-			.marks( this.models.marks )
-			.canvas( this.models.canvas )
-			.axes( this.models.axes )
-			.layers( this.layers );
-
-		return this;
-
-	},
-
-	_settings: function( options ) {
-
-		// Ability to turn on and off annotations, interaction, animation, listeners (?)
-		// url for collection fetch
-
-		return this;
-
-	}, // end METHOD settings()
+// Chart API:
+Chart.API = Backbone.View.extend({
 
 	type: function( type ) {
 		if (type) {
@@ -336,5 +183,162 @@ Chart.View = Backbone.View.extend({
 		};
 		return this.models.marks.get('interactive');
 	}
+
+});
+
+
+// Master Controller:
+Chart.View = Chart.API.extend({
+
+	el: 'body',
+	//tagName: 'figure',
+	//className: 'mvcChart',
+
+	initialize: function( options ) {
+
+		// Initialize an event dispatcher:
+		this.events = _.clone(Backbone.Events);
+
+		// Initialize models and collections:
+		this._initModels()
+			._initCollections();
+
+		// Initialize a layers object into which we will store all created layers:
+		this.layers = {};
+
+		// Initialize a chart object to store view instances:
+		this.chart = {};
+
+		// Handle input options:
+		this._settings( options );
+
+		// Initialize the view instances:
+		this._initCanvas()
+			._initAxes();
+
+	}, // end METHOD initialize()
+
+	render: function() {
+
+		if (this.collections.data.length == 0) {
+			console.log('Have you forgotten to give me some data?');
+			return;
+		}; 	
+		
+		this._initData()
+			._initAnnotations()
+			._initWidgets();
+
+		return this;
+
+	}, // end METHOD render()
+
+	_initModels: function() {
+		// Instantiate relevant models:
+		this.models = {}; 
+		this.models.canvas    = new Chart.Models.Canvas({events: this.events});
+		this.models.axes 	  = new Chart.Models.Axes({events: this.events});
+		this.models.marks	  = new Chart.Models.Marks({events: this.events});
+		this.models.annotations = new Chart.Models.Annotations({events: this.events});
+		this.models.widgets = new Chart.Models.Widgets({events: this.events});	
+
+		return this;
+		
+	},
+
+	_initCollections: function() {
+		// Instantiate data collections:
+		this.collections = {};
+		this.collections.data = new Chart.Collections.Data([],{events: this.events});
+
+		return this;
+	},
+
+	_initCanvas: function() {
+		// Canvas:
+		this.chart.base = new Chart.Layers.Base();
+
+		this.chart.base
+			.elem( this.el )
+			.events( this.events )
+			.canvas( this.models.canvas )
+			.layers( this.layers )
+			.render();	
+
+		return this;	
+	},
+
+	_initAxes: function() {
+		// Axes:
+		this.chart.axes = new Chart.Layers.Axes();
+
+		this.chart.axes
+			.events( this.events )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.render();
+
+		return this;
+	},
+
+	_initAnnotations: function() {
+		// Annotations:
+		this.chart.annotations = new Chart.Layers.Annotations();
+
+		this.chart.annotations
+			.events( this.events )
+			.data( this.collections.data )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.annotations( this.models.annotations )
+			.render();
+
+		return this;
+	},
+
+	_initWidgets: function() {
+		// Widgets:
+		this.chart.widgets = new Chart.Layers.Widgets();
+
+		this.chart.widgets
+			.events( this.events )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.widgets( this.models.widgets )
+			.data( this.collections.data )
+			.marks( this.models.marks )
+			.render();
+
+		return this;
+	},
+
+	_initData: function() {
+		// Data:
+		this.chart.data = new Chart.Layers.Data();
+
+		this.chart.data
+			.data( this.collections.data )
+			.events( this.events )
+			.marks( this.models.marks )
+			.canvas( this.models.canvas )
+			.axes( this.models.axes )
+			.layers( this.layers )
+			.render();
+
+		return this;
+
+	},
+
+	_settings: function( options ) {
+
+		// Ability to turn on and off annotations, interaction, animation, listeners (?)
+		// url for collection fetch
+
+		return this;
+
+	} // end METHOD settings()
 
 });

@@ -33,26 +33,38 @@ Chart.Models.Widgets = Backbone.ChartModel.extend({
 
 			// Interactive brush:
 			brush: true,
-			brushType: 'x' // options: x or y
+			brushType: 'x', // options: x or y
+
+			// Events:
+			events: null
 
 		};
 
 	},
 
 	initialize: function( options ) {
-		
+
+		var events = this.get('events'),
+			params;
+
+		if (events) {
+			params = {'events': events};
+		}else {
+			params = undefined;
+		} 
+				
 		// Initialize widget models:
 		if (this.get('brush')) {
 			var brush;
 			switch (this.get('brushType')) {
 				case 'x':
-					brush = new Chart.Models.xBrush();
+					brush = new Chart.Models.xBrush( params );
 					break;
 				case 'y':
-					brush = new Chart.Models.yBrush();
+					brush = new Chart.Models.yBrush( params );
 					break;
 				default:
-					brush = new Chart.Models.xBrush();
+					brush = new Chart.Models.xBrush( params );
 					break;
 			}; // end SWITCH brushType	
 			this.set('brushModel', brush, {validate: false});
@@ -106,6 +118,16 @@ Chart.Models.Widgets = Backbone.ChartModel.extend({
 						if (validVals.indexOf(val) < 0) {
 							errors[key] = prefix + 'Assigned value must be one of the following: ' + validVals;
 						}; 
+					};
+					break;
+
+				case 'events':
+					if ( !_.isObject( val ) ) {
+						errors[key] = prefix + 'Assigned value must be an object.';
+					}else {
+						if ( !val.hasOwnProperty('trigger') || !_.isFunction( val.trigger) ) {
+							errors[key] + prefix + 'Assigned object must have a trigger method.';
+						};
 					};
 					break;
 

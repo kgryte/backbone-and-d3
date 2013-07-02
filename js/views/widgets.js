@@ -344,7 +344,10 @@ Chart.Layers.Widgets = Backbone.View.extend({
 		};
 
 		var updateBrush = function() {
+			var axes = this.model.get('axes'),
+				type = this.model.get('widgets').get('brushType');
 
+			// TBD			
 		}; 
 
 		var resize = function() {
@@ -495,8 +498,7 @@ Chart.Layers.Widgets = Backbone.View.extend({
 		var graph = new Chart.Layers.Data();
 
 		// [3] Provide modified models for the brush graph:
-		//	remove marks.interactive
-
+		
 		var layers = {
 			chart: brushChart
 		};
@@ -516,16 +518,14 @@ Chart.Layers.Widgets = Backbone.View.extend({
 		graph.model.get('layers').data.marks.style('pointer-events', 'none');
 
 		// [6] Add listeners for resize:
-		brushModel.on('change:height change:width change:margin', draw, this);
+		this._events.on('brush:range:change', draw, this);
 
 		function draw() {
-			setTimeout( function() {
-				canvas.set({
-					'height': brushModel.get('height'),
-					'width': brushModel.get('width'),
-					'margin': brushModel.get('margin')
-				});
-			}, 10);			
+			canvas.set({
+				'height': brushModel.get('height'),
+				'width': brushModel.get('width'),
+				'margin': brushModel.get('margin')
+			}); 
 		}; // end FUNCTION draw()
 
 	} // end METHOD _brushGraph()

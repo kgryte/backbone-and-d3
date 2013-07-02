@@ -111,8 +111,9 @@ Chart.Layers.Annotations = Backbone.View.extend({
 
 	caption: function() {
 		var layers = this.model.get('layers'),
-			width = this.model.get('canvas').get('_graph'),
+			width = this.model.get('canvas').get('width'),
 			marginLeft = this.model.get('canvas').get('marginLeft'),
+			marginRight = this.model.get('canvas').get('marginRight'),
 			caption = this.model.get('annotations').get('caption'),
 			editable = this.model.get('annotations').get('editable');
 
@@ -122,6 +123,7 @@ Chart.Layers.Annotations = Backbone.View.extend({
 			.attr('contenteditable', editable)
 			.style('width',  width + 'px' )
 			.style('padding-left', marginLeft + 'px' )
+			.style('padding-right', marginRight + 'px' )
 			.html( caption );
 
 		return this;
