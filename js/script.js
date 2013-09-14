@@ -13,7 +13,7 @@
 
 $(function() {
 
-	var option = 0;
+	var option = 2;
 
 	switch (option) {
 
